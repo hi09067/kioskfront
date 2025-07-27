@@ -1,0 +1,133 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import createInstance from "../axios/Interceptor";
+import useUserStore from '../store/useUserStore';
+
+export default function KioskAwarenessSurvey() {
+  const serverUrl = import.meta.env.VITE_BACK_SERVER;
+  const axiosInstance = createInstance();
+  const navigate = useNavigate();
+   const {  setViewDate, viewDate, setNickName, nickName } = useUserStore();
+
+  const [answers, setAnswers] = useState({
+    q1: '',
+    q2: '',
+    q3: '',
+    q4: '',
+    q5: '',
+    q6: ''
+  });
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setAnswers(prev => ({ ...prev, [name]: value }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    if (Object.values(answers).some(answer => !answer)) {
+      alert('모든 문항에 응답해주세요.');
+      return;
+    }
+
+    
+    console.log("제출 전 닉네임 확인 : ", nickName);
+    const receiptInfo = {
+      nickName : nickName, // 세션값 == undefined
+      viewDate : viewDate, // 세션값
+      surveyAnswerList: Object.entries(answers).map(([key, value], idx) => ({
+        questionId: idx + 1,
+        answerScore: parseInt(value),
+      }))
+    };
+
+    axiosInstance({
+      url: serverUrl + '/receipt',
+      method: 'post',
+      data: receiptInfo,
+    })
+      .then(function(res){
+        navigate('/receipt');
+      })
+  }
+
+  function renderScaleQuestion(label, name) {
+    return (
+      <div style={{ marginBottom: 40 }}>
+        <p style={{ fontSize: 26, fontWeight: 'bold', marginBottom: 16 }}>{label}</p>
+        <div style={{ display: 'flex', gap: 20, fontSize: 24 }}>
+          {[1, 2, 3, 4, 5].map(value => (
+            <label key={value} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <input
+                type="radio"
+                name={name}
+                value={value}
+                checked={answers[name] === String(value)}
+                onChange={handleChange}
+                style={{ width: 28, height: 28, marginBottom: 8 }}
+              />
+              {value}
+            </label>
+          ))}
+        </div>
+        <div style={{ fontSize: 18, color: '#555', marginTop: 8 }}>
+          <span>1: 전혀 아니다</span> &nbsp;&nbsp;
+          <span>5: 매우 그렇다</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: 40, fontFamily: 'sans-serif' }}>
+      <h2 style={{ fontSize: 36, marginBottom: 40, textAlign: 'center' }}>잠깐만요! 여러분의 의견이 필요해요</h2>
+      <form onSubmit={handleSubmit}>
+        {renderScaleQuestion(
+          'Q1. 키오스크 사용으로 인해 발생한 사회적 문제(차별, 불편 등)에 대해 생각해보았다.',
+          'q1'
+        )}
+        {renderScaleQuestion(
+          'Q2. 뉴스나 인터넷에서 키오스크와 관련된 문제를 접하고 관심을 가졌다.',
+          'q2'
+        )}
+        {renderScaleQuestion(
+          'Q3. 키오스크가 누구에게는 불편할 수 있다고 생각한다.',
+          'q3'
+        )}
+        {renderScaleQuestion(
+          'Q4. 키오스크를 이용할 때 조작 방법이 헷갈리거나 어려웠던 적이 있다.',
+          'q4'
+        )}
+        {renderScaleQuestion(
+          'Q5. 줄 서 있는 상황에서 뒤에 있는 사람을 의식해 조급함을 느낀 적이 있다.',
+          'q5'
+        )}
+        {renderScaleQuestion(
+          'Q6. 키오스크의 화면 구성이나 글씨 크기 때문에 불편함을 느낀 적이 있다.',
+          'q6'
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <button
+            type="submit"
+            style={{
+              marginTop: 40,
+              padding: '20px 40px',
+              borderRadius: 12,
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              fontSize: 24,
+              cursor: 'pointer',
+              width: 240,
+              height: 80,
+            }}
+          >
+            다음
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
