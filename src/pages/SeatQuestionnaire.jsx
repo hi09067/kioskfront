@@ -5,10 +5,9 @@ import useUserStore from '../store/useUserStore';
 
 export default function KioskAwarenessSurvey() {
   const serverUrl = import.meta.env.VITE_BACK_SERVER;
-  console.log("백엔드 주소 확인:", serverUrl);
   const axiosInstance = createInstance();
   const navigate = useNavigate();
-   const {  setViewDate, viewDate, setNickName, nickName } = useUserStore();
+  const { setViewDate, viewDate, setNickName, nickName } = useUserStore();
 
   const [answers, setAnswers] = useState({
     q1: '',
@@ -18,6 +17,8 @@ export default function KioskAwarenessSurvey() {
     q5: '',
     q6: ''
   });
+
+  const [isLoading, setIsLoading] = useState(false);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -32,27 +33,32 @@ export default function KioskAwarenessSurvey() {
       return;
     }
 
-    
-    console.log("제출 전 닉네임 확인 : ", nickName);
     const receiptInfo = {
-      nickName : nickName, // 세션값 == undefined
-      viewDate : viewDate, // 세션값
+      nickName: nickName,
+      viewDate: viewDate,
       surveyAnswerList: Object.entries(answers).map(([key, value], idx) => ({
         questionId: idx + 1,
         answerScore: parseInt(value),
       }))
     };
-    
 
+    setIsLoading(true);
 
     axiosInstance({
       url: serverUrl + '/receipt',
       method: 'post',
       data: receiptInfo,
     })
-      .then(function(res){
+      .then(function (res) {
         navigate('/receipt');
       })
+      .catch(function (err) {
+        alert("제출에 실패했습니다. 다시 시도해주세요.");
+        console.error(err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }
 
   function renderScaleQuestion(label, name) {
@@ -83,7 +89,27 @@ export default function KioskAwarenessSurvey() {
   }
 
   return (
-    <div style={{ padding: 40, fontFamily: 'sans-serif' }}>
+    <div style={{ position: 'relative', padding: 40, fontFamily: 'sans-serif' }}>
+      {/* ✅ 로딩 오버레이 */}
+      {isLoading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.6)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 28,
+            fontWeight: 'bold',
+            pointerEvents: 'auto'
+          }}
+        >
+          ⏳ 응답을 전송 중입니다...
+        </div>
+      )}
+
       <h2 style={{ fontSize: 36, marginBottom: 40, textAlign: 'center' }}>잠깐만요! 여러분의 의견이 필요해요</h2>
       <form onSubmit={handleSubmit}>
         {renderScaleQuestion(
@@ -114,6 +140,7 @@ export default function KioskAwarenessSurvey() {
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <button
             type="submit"
+            disabled={isLoading}
             style={{
               marginTop: 40,
               padding: '20px 40px',
@@ -122,9 +149,10 @@ export default function KioskAwarenessSurvey() {
               color: 'white',
               border: 'none',
               fontSize: 24,
-              cursor: 'pointer',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
               width: 240,
               height: 80,
+              opacity: isLoading ? 0.6 : 1,
             }}
           >
             다음
