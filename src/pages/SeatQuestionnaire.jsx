@@ -5,6 +5,7 @@ import useUserStore from '../store/useUserStore';
 
 export default function KioskAwarenessSurvey() {
   const serverUrl = import.meta.env.VITE_BACK_SERVER;
+  console.log("백엔드 주소 확인:", serverUrl);
   const axiosInstance = createInstance();
   const navigate = useNavigate();
    const {  setViewDate, viewDate, setNickName, nickName } = useUserStore();
@@ -41,6 +42,8 @@ export default function KioskAwarenessSurvey() {
         answerScore: parseInt(value),
       }))
     };
+    
+
 
     axiosInstance({
       url: serverUrl + '/receipt',
