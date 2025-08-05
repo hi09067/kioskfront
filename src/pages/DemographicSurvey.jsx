@@ -50,7 +50,7 @@ export default function SurveyAll() {
     try {
       const response = await axios.post(
         import.meta.env.VITE_BACK_SERVER + '/isDuplicateNickname',
-        JSON.stringify(formData.nickname),
+        formData.nickname,
         {
           headers: {
             'Content-Type': 'application/json',
