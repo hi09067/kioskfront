@@ -65,10 +65,12 @@ export default function SurveyAll() {
       const isDuplicate = response.data;
 
       if (isDuplicate) {
+        setIsDuplicateNickname(true);
         setIsNicknameChecked(true);
         Swal.fire('중복된 닉네임입니다!', '다른 닉네임을 입력해주세요.', 'error');
       } else {
-        setIsNicknameChecked(false);
+        setIsDuplicateNickname(false);
+        setIsNicknameChecked(true);
         Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
       }
     } catch (error) {
