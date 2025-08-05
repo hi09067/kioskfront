@@ -46,11 +46,15 @@ export default function SurveyAll() {
     // 닉네임 입력 시 중복체크
     if (name === 'nickname') {
       try {
-        const response = await axios.post(`${import.meta.env.VITE_BACK_SERVER}/isDuplicateNickname`, JSON.stringify(value), {
-          headers: {
-            'Content-Type': 'application/json',
+        const response = await axios.post(
+          import.meta.env.VITE_BACK_SERVER + '/isDuplicateNickname',
+          JSON.stringify(value),
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            }
           }
-        });
+        );
 
         const isDuplicate = response.data;
 
@@ -64,6 +68,7 @@ export default function SurveyAll() {
         return;
       }
     }
+
 
     // 중복 아니면 formData 갱신
     setFormData(prev => ({ ...prev, [name]: value }));
