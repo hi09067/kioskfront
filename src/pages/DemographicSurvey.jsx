@@ -248,6 +248,7 @@ export default function SurveyAll() {
             >
               제출
             </button>
+            </form>
             {isLoading && (
         <div style={{
           position: 'fixed',
@@ -265,7 +266,6 @@ export default function SurveyAll() {
           닉네임 중복 확인 중...
         </div>
       )}
-          </form>
         </>
       )}
     </div>
