@@ -4,8 +4,6 @@ import Swal from "sweetalert2";
 import createInstance from "../axios/Interceptor";
 import useUserStore from '../store/useUserStore';
 
-
-
 const demographicQuestions = [
   { label: '닉네임', type: 'text', name: 'nickname', options: null },
   { label: '성별', type: 'radio', name: 'gender', options: ['그 외', '여성', '남성'] },
@@ -24,8 +22,7 @@ const reasonOptions = [
 ];
 
 export default function SurveyAll() {
-  // 닉네임 정보 저장
-  const { setNickName, nickName } = useUserStore();
+  const { setNickName } = useUserStore();
   const navigate = useNavigate();
   const axios = createInstance();
 
@@ -37,48 +34,46 @@ export default function SurveyAll() {
     income: ''
   });
 
+  const [isNicknameChecked, setIsNicknameChecked] = useState(false);
   const [reasons, setReasons] = useState([]);
   const [customReason, setCustomReason] = useState('');
 
-  const handleDemographicChange = async (e) => {
+  const handleDemographicChange = (e) => {
     const { name, value } = e.target;
-
-    // 닉네임 입력 시 중복체크
     if (name === 'nickname') {
-      try {
-        const response = await axios.post(
-          import.meta.env.VITE_BACK_SERVER + '/isDuplicateNickname',
-          JSON.stringify(value),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          }
-        );
-
-        const isDuplicate = response.data;
-
-        if (isDuplicate) {
-          Swal.fire('중복된 닉네임입니다!', '다른 닉네임을 입력해주세요.', 'error');
-          return;
-        }
-      } catch (error) {
-        console.error("닉네임 중복 체크 에러", error);
-        Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
-        return;
-      }
+      setIsNicknameChecked(false); // 닉네임 바뀌면 중복체크 무효화
     }
-
-
-    // 중복 아니면 formData 갱신
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleNicknameCheck = async () => {
+    try {
+      const response = await axios.post(
+        import.meta.env.VITE_BACK_SERVER + '/isDuplicateNickname',
+        JSON.stringify(formData.nickname),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
 
-  const isAnswered = (name) => {
-    return formData[name] && formData[name].trim() !== '';
+      const isDuplicate = response.data;
+
+      if (isDuplicate) {
+        setIsNicknameChecked(false);
+        Swal.fire('중복된 닉네임입니다!', '다른 닉네임을 입력해주세요.', 'error');
+      } else {
+        setIsNicknameChecked(true);
+        Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
+      }
+    } catch (error) {
+      console.error("닉네임 중복 체크 에러", error);
+      Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
+    }
   };
 
+  const isAnswered = (name) => formData[name] && formData[name].trim() !== '';
   const allDemographicsAnswered = demographicQuestions.every(q => isAnswered(q.name));
 
   const handleCheckboxChange = (e) => {
@@ -88,14 +83,16 @@ export default function SurveyAll() {
     );
   };
 
-  const handleCustomReasonChange = (e) => {
-    setCustomReason(e.target.value);
-  };
+  const handleCustomReasonChange = (e) => setCustomReason(e.target.value);
 
   function handleReasonSubmit(e) {
-  e.preventDefault();
+    e.preventDefault();
 
-    // 최종 이유 배열 계산
+    if (!isNicknameChecked) {
+      Swal.fire('닉네임 중복 체크를 해주세요!', '', 'error');
+      return;
+    }
+
     let finalReasons = reasons;
     if (reasons.includes('기타') && customReason.trim()) {
       finalReasons = reasons.filter(r => r !== '기타').concat(customReason.trim());
@@ -103,7 +100,7 @@ export default function SurveyAll() {
 
     if (finalReasons.length === 0) {
       Swal.fire('오류', '참여 이유를 하나 이상 선택해주세요', 'error');
-      return; // 여기서 함수 종료
+      return;
     }
 
     Swal.fire({
@@ -122,14 +119,7 @@ export default function SurveyAll() {
           cancelButtonText: '아니요',
         }).then((secondResult) => {
           if (secondResult.isConfirmed) {
-
-            // 닉네임 저장
-            console.log("닉네임 저장 : ", formData.nickname);
             setNickName(formData.nickname);
-            
-            console.log('인구사회학 설문 결과:', formData);
-            console.log('관람 이유:', finalReasons);
-
             navigate('/questions');
           }
         });
@@ -137,28 +127,9 @@ export default function SurveyAll() {
     });
   }
 
-
   return (
-    <div
-      style={{
-        padding: 40,
-        maxWidth: 560,
-        margin: '40px auto',
-        fontFamily: 'Arial, sans-serif',
-        backgroundColor: '#f9f9f9',
-        borderRadius: 10,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        userSelect: 'text',
-      }}
-    >
-      <h2
-        style={{
-          textAlign: 'center',
-          fontSize: 32,
-          marginBottom: 32,
-          color: '#333',
-        }}
-      >
+    <div style={{ padding: 40, maxWidth: 560, margin: '40px auto', fontFamily: 'Arial, sans-serif', backgroundColor: '#f9f9f9', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+      <h2 style={{ textAlign: 'center', fontSize: 32, marginBottom: 32, color: '#333' }}>
         응답자 정보를 입력해주세요
       </h2>
 
@@ -167,106 +138,51 @@ export default function SurveyAll() {
         const isOdd = index % 2 === 1;
 
         return canShow ? (
-          <div
-            key={question.name}
-            style={{
-              marginBottom: 36,
-              display: 'flex',
-              flexDirection: isOdd ? 'row-reverse' : 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 20,
-            }}
-          >
-            <label
-              htmlFor={question.name}
-              style={{
-                flexBasis: '40%',
-                textAlign: isOdd ? 'right' : 'left',
-                fontWeight: '700',
-                fontSize: 22,
-                color: '#555',
-                userSelect: 'none',
-                whiteSpace: 'nowrap',
-              }}
-            >
+          <div key={question.name} style={{ marginBottom: 36, display: 'flex', flexDirection: isOdd ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+            <label htmlFor={question.name} style={{ flexBasis: '40%', textAlign: isOdd ? 'right' : 'left', fontWeight: '700', fontSize: 22, color: '#555', userSelect: 'none', whiteSpace: 'nowrap' }}>
               {question.label}
             </label>
 
-            <div
-              style={{
-                flexBasis: isOdd ? '50%' : '55%',
-                textAlign: isOdd ? 'left' : 'right',
-              }}
-            >
-              {question.type === 'text' && (
-                <input
-                  id={question.name}
-                  type="text"
-                  name={question.name}
-                  value={formData[question.name]}
-                  onChange={handleDemographicChange}
-                  style={{
-                    width: '100%',
-                    padding: 14,
-                    fontSize: 20,
-                    borderRadius: 8,
-                    border: '2px solid #aaa',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = '#007bff')}
-                  onBlur={e => (e.target.style.borderColor = '#aaa')}
-                  autoComplete="off"
-                />
+            <div style={{ flexBasis: isOdd ? '50%' : '55%', textAlign: isOdd ? 'left' : 'right' }}>
+              {question.type === 'text' && question.name === 'nickname' && (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    id={question.name}
+                    type="text"
+                    name={question.name}
+                    value={formData[question.name]}
+                    onChange={handleDemographicChange}
+                    style={{ flex: 1, padding: 14, fontSize: 20, borderRadius: 8, border: '2px solid #aaa', outline: 'none', transition: 'border-color 0.2s' }}
+                    onFocus={e => (e.target.style.borderColor = '#007bff')}
+                    onBlur={e => (e.target.style.borderColor = '#aaa')}
+                    autoComplete="off"
+                  />
+                  <button type="button" onClick={handleNicknameCheck} style={{ padding: '10px 16px', fontSize: 16, backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+                    중복 체크
+                  </button>
+                </div>
               )}
 
-              {question.type === 'radio' &&
-                question.options.map(option => (
-                  <label
-                    key={option}
-                    style={{
-                      marginRight: 16,
-                      cursor: 'pointer',
-                      fontSize: 20,
-                      userSelect: 'none',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name={question.name}
-                      value={option}
-                      checked={formData[question.name] === option}
-                      onChange={handleDemographicChange}
-                      style={{ marginRight: 8, cursor: 'pointer', width: 24, height: 24 }}
-                    />
-                    {option}
-                  </label>
-                ))}
+              {/* other question types ... */}
+              {question.type === 'radio' && question.options.map(option => (
+                <label key={option} style={{ marginRight: 16, cursor: 'pointer', fontSize: 20, userSelect: 'none' }}>
+                  <input type="radio" name={question.name} value={option} checked={formData[question.name] === option} onChange={handleDemographicChange} style={{ marginRight: 8, cursor: 'pointer', width: 24, height: 24 }} />
+                  {option}
+                </label>
+              ))}
 
               {question.type === 'select' && (
                 <select
                   name={question.name}
                   value={formData[question.name]}
                   onChange={handleDemographicChange}
-                  style={{
-                    width: '100%',
-                    padding: 14,
-                    fontSize: 20,
-                    borderRadius: 8,
-                    border: '2px solid #aaa',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                    textAlignLast: 'center',
-                  }}
+                  style={{ width: '100%', padding: 14, fontSize: 20, borderRadius: 8, border: '2px solid #aaa', outline: 'none', transition: 'border-color 0.2s', textAlignLast: 'center' }}
                   onFocus={e => (e.target.style.borderColor = '#007bff')}
                   onBlur={e => (e.target.style.borderColor = '#aaa')}
                 >
                   <option value="">선택</option>
                   {question.options.map(option => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
+                    <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
               )}
@@ -277,47 +193,15 @@ export default function SurveyAll() {
 
       {allDemographicsAnswered && (
         <>
-          <h2
-            style={{
-              marginTop: 48,
-              textAlign: 'center',
-              color: '#333',
-              fontSize: 28,
-              fontWeight: '700',
-              marginBottom: 20,
-            }}
-          >
+          <h2 style={{ marginTop: 48, textAlign: 'center', color: '#333', fontSize: 28, fontWeight: '700', marginBottom: 20 }}>
             관람 또는 참여 이유가 무엇입니까?
           </h2>
 
           <form onSubmit={handleReasonSubmit}>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-                marginBottom: 28,
-              }}
-            >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
               {reasonOptions.map(reason => (
-                <label
-                  key={reason}
-                  style={{
-                    cursor: 'pointer',
-                    fontSize: 22,
-                    userSelect: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    value={reason}
-                    checked={reasons.includes(reason)}
-                    onChange={handleCheckboxChange}
-                    style={{ cursor: 'pointer', width: 26, height: 26 }}
-                  />
+                <label key={reason} style={{ cursor: 'pointer', fontSize: 22, userSelect: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input type="checkbox" value={reason} checked={reasons.includes(reason)} onChange={handleCheckboxChange} style={{ cursor: 'pointer', width: 26, height: 26 }} />
                   {reason}
                 </label>
               ))}
@@ -325,33 +209,14 @@ export default function SurveyAll() {
 
             {reasons.includes('기타') && (
               <div style={{ marginBottom: 28 }}>
-                <label
-                  htmlFor="customReason"
-                  style={{
-                    fontWeight: '700',
-                    fontSize: 20,
-                    marginBottom: 8,
-                    display: 'block',
-                    userSelect: 'none',
-                  }}
-                >
-                  기타 이유:
-                </label>
+                <label htmlFor="customReason" style={{ fontWeight: '700', fontSize: 20, marginBottom: 8, display: 'block', userSelect: 'none' }}>기타 이유:</label>
                 <input
                   id="customReason"
                   type="text"
                   value={customReason}
                   onChange={handleCustomReasonChange}
                   placeholder="직접 입력"
-                  style={{
-                    width: '100%',
-                    padding: 14,
-                    fontSize: 20,
-                    borderRadius: 8,
-                    border: '2px solid #aaa',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
+                  style={{ width: '100%', padding: 14, fontSize: 20, borderRadius: 8, border: '2px solid #aaa', outline: 'none', transition: 'border-color 0.2s' }}
                   onFocus={e => (e.target.style.borderColor = '#007bff')}
                   onBlur={e => (e.target.style.borderColor = '#aaa')}
                 />
@@ -360,6 +225,7 @@ export default function SurveyAll() {
 
             <button
               type="submit"
+              disabled={!isNicknameChecked}
               style={{
                 display: 'block',
                 margin: '0 auto',
@@ -368,13 +234,11 @@ export default function SurveyAll() {
                 fontWeight: '700',
                 borderRadius: 8,
                 border: 'none',
-                backgroundColor: '#007bff',
+                backgroundColor: isNicknameChecked ? '#007bff' : '#ccc',
                 color: 'white',
-                cursor: 'pointer',
-                transition: 'background-color 0.3s',
+                cursor: isNicknameChecked ? 'pointer' : 'not-allowed',
+                transition: 'background-color 0.3s'
               }}
-              onMouseEnter={e => (e.target.style.backgroundColor = '#0056b3')}
-              onMouseLeave={e => (e.target.style.backgroundColor = '#007bff')}
             >
               제출
             </button>
