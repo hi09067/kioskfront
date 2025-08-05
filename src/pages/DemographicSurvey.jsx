@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from "sweetalert2";
+import createInstance from "../axios/Interceptor";
 import useUserStore from '../store/useUserStore';
 
 
@@ -26,6 +27,7 @@ export default function SurveyAll() {
   // 닉네임 정보 저장
   const { setNickName, nickName } = useUserStore();
   const navigate = useNavigate();
+  const axios = createInstance();
 
   const [formData, setFormData] = useState({
     nickname: '',
@@ -38,10 +40,35 @@ export default function SurveyAll() {
   const [reasons, setReasons] = useState([]);
   const [customReason, setCustomReason] = useState('');
 
-  const handleDemographicChange = (e) => {
+  const handleDemographicChange = async (e) => {
     const { name, value } = e.target;
+
+    // 닉네임 입력 시 중복체크
+    if (name === 'nickname') {
+      try {
+        const response = await axios.post(`${import.meta.env.VITE_BACK_SERVER}/isDuplicateNickname`, JSON.stringify(value), {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        const isDuplicate = response.data;
+
+        if (isDuplicate) {
+          Swal.fire('중복된 닉네임입니다!', '다른 닉네임을 입력해주세요.', 'error');
+          return;
+        }
+      } catch (error) {
+        console.error("닉네임 중복 체크 에러", error);
+        Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
+        return;
+      }
+    }
+
+    // 중복 아니면 formData 갱신
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
 
   const isAnswered = (name) => {
     return formData[name] && formData[name].trim() !== '';
