@@ -35,6 +35,8 @@ export default function SurveyAll() {
   });
 
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
+  const [isDuplicateNickname, setIsDuplicateNickname] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [reasons, setReasons] = useState([]);
   const [customReason, setCustomReason] = useState('');
 
@@ -42,15 +44,17 @@ export default function SurveyAll() {
     const { name, value } = e.target;
     if (name === 'nickname') {
       setIsNicknameChecked(false); // 닉네임 바뀌면 중복체크 무효화
+      setIsDuplicateNickname(true);
     }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleNicknameCheck = async () => {
+    setIsLoading(true);
     try {
       const response = await axios.post(
         import.meta.env.VITE_BACK_SERVER + '/isDuplicateNickname',
-        (formData.nickname),
+        formData.nickname,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -70,6 +74,8 @@ export default function SurveyAll() {
     } catch (error) {
       console.error("닉네임 중복 체크 에러", error);
       Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
+    }finally{
+      setIsLoading(false);
     }
   };
 
@@ -225,7 +231,7 @@ export default function SurveyAll() {
 
             <button
               type="submit"
-              disabled={!isNicknameChecked}
+              disabled={!isNicknameChecked || isDuplicateNickname}
               style={{
                 display: 'block',
                 margin: '0 auto',
@@ -242,6 +248,23 @@ export default function SurveyAll() {
             >
               제출
             </button>
+            {isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0,
+          width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: '2rem',
+          fontWeight: 'bold'
+        }}>
+          닉네임 중복 확인 중...
+        </div>
+      )}
           </form>
         </>
       )}
