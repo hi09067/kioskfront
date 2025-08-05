@@ -134,122 +134,237 @@ export default function SurveyAll() {
   }
 
   return (
-    <div style={{ padding: 40, maxWidth: 560, margin: '40px auto', fontFamily: 'Arial, sans-serif', backgroundColor: '#f9f9f9', borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-      <h2 style={{ textAlign: 'center', fontSize: 32, marginBottom: 32, color: '#333' }}>
-        응답자 정보를 입력해주세요
-      </h2>
+    <>
+      {/* 메인 내용 영역 */}
+      <div style={{
+        padding: 40,
+        maxWidth: 560,
+        margin: '40px auto',
+        fontFamily: 'Arial, sans-serif',
+        backgroundColor: '#f9f9f9',
+        borderRadius: 10,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+        <h2 style={{
+          textAlign: 'center',
+          fontSize: 32,
+          marginBottom: 32,
+          color: '#333'
+        }}>
+          응답자 정보를 입력해주세요
+        </h2>
 
-      {demographicQuestions.map((question, index) => {
-        const canShow = demographicQuestions.slice(0, index).every(q => isAnswered(q.name));
-        const isOdd = index % 2 === 1;
+        {demographicQuestions.map((question, index) => {
+          const canShow = demographicQuestions.slice(0, index).every(q => isAnswered(q.name));
+          const isOdd = index % 2 === 1;
 
-        return canShow ? (
-          <div key={question.name} style={{ marginBottom: 36, display: 'flex', flexDirection: isOdd ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
-            <label htmlFor={question.name} style={{ flexBasis: '40%', textAlign: isOdd ? 'right' : 'left', fontWeight: '700', fontSize: 22, color: '#555', userSelect: 'none', whiteSpace: 'nowrap' }}>
-              {question.label}
-            </label>
+          return canShow ? (
+            <div key={question.name} style={{
+              marginBottom: 36,
+              display: 'flex',
+              flexDirection: isOdd ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 20
+            }}>
+              <label htmlFor={question.name} style={{
+                flexBasis: '40%',
+                textAlign: isOdd ? 'right' : 'left',
+                fontWeight: '700',
+                fontSize: 22,
+                color: '#555',
+                userSelect: 'none',
+                whiteSpace: 'nowrap'
+              }}>
+                {question.label}
+              </label>
 
-            <div style={{ flexBasis: isOdd ? '50%' : '55%', textAlign: isOdd ? 'left' : 'right' }}>
-              {question.type === 'text' && question.name === 'nickname' && (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    id={question.name}
-                    type="text"
+              <div style={{
+                flexBasis: isOdd ? '50%' : '55%',
+                textAlign: isOdd ? 'left' : 'right'
+              }}>
+                {question.type === 'text' && question.name === 'nickname' && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      id={question.name}
+                      type="text"
+                      name={question.name}
+                      value={formData[question.name]}
+                      onChange={handleDemographicChange}
+                      style={{
+                        flex: 1,
+                        padding: 14,
+                        fontSize: 20,
+                        borderRadius: 8,
+                        border: '2px solid #aaa',
+                        outline: 'none',
+                        transition: 'border-color 0.2s'
+                      }}
+                      onFocus={e => (e.target.style.borderColor = '#007bff')}
+                      onBlur={e => (e.target.style.borderColor = '#aaa')}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleNicknameCheck}
+                      style={{
+                        padding: '10px 16px',
+                        fontSize: 16,
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 8,
+                        cursor: 'pointer'
+                      }}>
+                      중복 체크
+                    </button>
+                  </div>
+                )}
+
+                {question.type === 'radio' && question.options.map(option => (
+                  <label key={option} style={{
+                    marginRight: 16,
+                    cursor: 'pointer',
+                    fontSize: 20,
+                    userSelect: 'none'
+                  }}>
+                    <input
+                      type="radio"
+                      name={question.name}
+                      value={option}
+                      checked={formData[question.name] === option}
+                      onChange={handleDemographicChange}
+                      style={{
+                        marginRight: 8,
+                        cursor: 'pointer',
+                        width: 24,
+                        height: 24
+                      }}
+                    />
+                    {option}
+                  </label>
+                ))}
+
+                {question.type === 'select' && (
+                  <select
                     name={question.name}
                     value={formData[question.name]}
                     onChange={handleDemographicChange}
-                    style={{ flex: 1, padding: 14, fontSize: 20, borderRadius: 8, border: '2px solid #aaa', outline: 'none', transition: 'border-color 0.2s' }}
+                    style={{
+                      width: '100%',
+                      padding: 14,
+                      fontSize: 20,
+                      borderRadius: 8,
+                      border: '2px solid #aaa',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      textAlignLast: 'center'
+                    }}
                     onFocus={e => (e.target.style.borderColor = '#007bff')}
                     onBlur={e => (e.target.style.borderColor = '#aaa')}
-                    autoComplete="off"
+                  >
+                    <option value="">선택</option>
+                    {question.options.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+          ) : null;
+        })}
+
+        {allDemographicsAnswered && (
+          <>
+            <h2 style={{
+              marginTop: 48,
+              textAlign: 'center',
+              color: '#333',
+              fontSize: 28,
+              fontWeight: '700',
+              marginBottom: 20
+            }}>
+              관람 또는 참여 이유가 무엇입니까?
+            </h2>
+
+            <form onSubmit={handleReasonSubmit}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
+                {reasonOptions.map(reason => (
+                  <label key={reason} style={{
+                    cursor: 'pointer',
+                    fontSize: 22,
+                    userSelect: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12
+                  }}>
+                    <input
+                      type="checkbox"
+                      value={reason}
+                      checked={reasons.includes(reason)}
+                      onChange={handleCheckboxChange}
+                      style={{ cursor: 'pointer', width: 26, height: 26 }}
+                    />
+                    {reason}
+                  </label>
+                ))}
+              </div>
+
+              {reasons.includes('기타') && (
+                <div style={{ marginBottom: 28 }}>
+                  <label htmlFor="customReason" style={{
+                    fontWeight: '700',
+                    fontSize: 20,
+                    marginBottom: 8,
+                    display: 'block',
+                    userSelect: 'none'
+                  }}>기타 이유:</label>
+                  <input
+                    id="customReason"
+                    type="text"
+                    value={customReason}
+                    onChange={handleCustomReasonChange}
+                    placeholder="직접 입력"
+                    style={{
+                      width: '100%',
+                      padding: 14,
+                      fontSize: 20,
+                      borderRadius: 8,
+                      border: '2px solid #aaa',
+                      outline: 'none',
+                      transition: 'border-color 0.2s'
+                    }}
+                    onFocus={e => (e.target.style.borderColor = '#007bff')}
+                    onBlur={e => (e.target.style.borderColor = '#aaa')}
                   />
-                  <button type="button" onClick={handleNicknameCheck} style={{ padding: '10px 16px', fontSize: 16, backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
-                    중복 체크
-                  </button>
                 </div>
               )}
 
-              {/* other question types ... */}
-              {question.type === 'radio' && question.options.map(option => (
-                <label key={option} style={{ marginRight: 16, cursor: 'pointer', fontSize: 20, userSelect: 'none' }}>
-                  <input type="radio" name={question.name} value={option} checked={formData[question.name] === option} onChange={handleDemographicChange} style={{ marginRight: 8, cursor: 'pointer', width: 24, height: 24 }} />
-                  {option}
-                </label>
-              ))}
-
-              {question.type === 'select' && (
-                <select
-                  name={question.name}
-                  value={formData[question.name]}
-                  onChange={handleDemographicChange}
-                  style={{ width: '100%', padding: 14, fontSize: 20, borderRadius: 8, border: '2px solid #aaa', outline: 'none', transition: 'border-color 0.2s', textAlignLast: 'center' }}
-                  onFocus={e => (e.target.style.borderColor = '#007bff')}
-                  onBlur={e => (e.target.style.borderColor = '#aaa')}
-                >
-                  <option value="">선택</option>
-                  {question.options.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-        ) : null;
-      })}
-
-      {allDemographicsAnswered && (
-        <>
-          <h2 style={{ marginTop: 48, textAlign: 'center', color: '#333', fontSize: 28, fontWeight: '700', marginBottom: 20 }}>
-            관람 또는 참여 이유가 무엇입니까?
-          </h2>
-
-          <form onSubmit={handleReasonSubmit}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
-              {reasonOptions.map(reason => (
-                <label key={reason} style={{ cursor: 'pointer', fontSize: 22, userSelect: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <input type="checkbox" value={reason} checked={reasons.includes(reason)} onChange={handleCheckboxChange} style={{ cursor: 'pointer', width: 26, height: 26 }} />
-                  {reason}
-                </label>
-              ))}
-            </div>
-
-            {reasons.includes('기타') && (
-              <div style={{ marginBottom: 28 }}>
-                <label htmlFor="customReason" style={{ fontWeight: '700', fontSize: 20, marginBottom: 8, display: 'block', userSelect: 'none' }}>기타 이유:</label>
-                <input
-                  id="customReason"
-                  type="text"
-                  value={customReason}
-                  onChange={handleCustomReasonChange}
-                  placeholder="직접 입력"
-                  style={{ width: '100%', padding: 14, fontSize: 20, borderRadius: 8, border: '2px solid #aaa', outline: 'none', transition: 'border-color 0.2s' }}
-                  onFocus={e => (e.target.style.borderColor = '#007bff')}
-                  onBlur={e => (e.target.style.borderColor = '#aaa')}
-                />
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={!isNicknameChecked || isDuplicateNickname}
-              style={{
-                display: 'block',
-                margin: '0 auto',
-                padding: '16px 44px',
-                fontSize: 22,
-                fontWeight: '700',
-                borderRadius: 8,
-                border: 'none',
-                backgroundColor: isNicknameChecked ? '#007bff' : '#ccc',
-                color: 'white',
-                cursor: isNicknameChecked ? 'pointer' : 'not-allowed',
-                transition: 'background-color 0.3s'
-              }}
-            >
-              제출
-            </button>
+              <button
+                type="submit"
+                disabled={!isNicknameChecked || isDuplicateNickname}
+                style={{
+                  display: 'block',
+                  margin: '0 auto',
+                  padding: '16px 44px',
+                  fontSize: 22,
+                  fontWeight: '700',
+                  borderRadius: 8,
+                  border: 'none',
+                  backgroundColor: isNicknameChecked ? '#007bff' : '#ccc',
+                  color: 'white',
+                  cursor: isNicknameChecked ? 'pointer' : 'not-allowed',
+                  transition: 'background-color 0.3s'
+                }}
+              >
+                제출
+              </button>
             </form>
-            {isLoading && (
+          </>
+        )}
+      </div>
+
+      {isLoading && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0,
@@ -257,17 +372,27 @@ export default function SurveyAll() {
           backgroundColor: 'rgba(0,0,0,0.4)',
           zIndex: 9999,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           color: 'white',
           fontSize: '2rem',
           fontWeight: 'bold'
         }}>
+          <div className="spinner" style={{
+            border: '8px solid rgba(255,255,255,0.3)',
+            borderTop: '8px solid white',
+            borderRadius: '50%',
+            width: '80px',
+            height: '80px',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '24px'
+          }} />
           닉네임 중복 확인 중...
         </div>
       )}
-        </>
-      )}
-    </div>
+
+    </>
   );
+
 }
