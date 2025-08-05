@@ -1,4 +1,3 @@
-// SurveyAll.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from "sweetalert2";
@@ -6,7 +5,7 @@ import createInstance from "../axios/Interceptor";
 import useUserStore from '../store/useUserStore';
 
 const demographicQuestions = [
-  { label: '닉네임', type: 'text', name: 'nickname', options: null },
+  { label: '닉네임', type: 'text', name: 'nickname' },
   { label: '성별', type: 'radio', name: 'gender', options: ['그 외', '여성', '남성'] },
   { label: '나이대', type: 'select', name: 'age', options: ['10대', '20대', '30대', '40대', '50대', '60대 이상'] },
   { label: '거주지', type: 'select', name: 'region', options: ['강남구, 서초구, 송파구', '용산구, 종로구, 마포구', '중구, 서대문구, 강동구', '양천구, 영등포구, 동작구', '성북구, 광진구, 노원구', '강서구, 구로구, 금천구, 관악구', '은평구, 도봉구, 강북구, 중랑구, 동대문구', '경기북부', '경기남부'] },
@@ -18,21 +17,16 @@ export default function SurveyAll() {
   const navigate = useNavigate();
   const axios = createInstance();
 
-  const [formData, setFormData] = useState({
-    nickname: '',
-    gender: '',
-    age: '',
-    region: '',
-    income: ''
-  });
-
+  const [formData, setFormData] = useState({ nickname: '', gender: '', age: '', region: '', income: '' });
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
+  const [isDuplicateNickname, setIsDuplicateNickname] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDemographicChange = (e) => {
     const { name, value } = e.target;
     if (name === 'nickname') {
       setIsNicknameChecked(false);
+      setIsDuplicateNickname(true);
     }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -43,17 +37,18 @@ export default function SurveyAll() {
       const response = await axios.post(
         import.meta.env.VITE_BACK_SERVER + '/isDuplicateNickname',
         formData.nickname,
-        {
-          headers: { 'Content-Type': 'application/json' }
-        }
+        { headers: { 'Content-Type': 'application/json' } }
       );
 
       const isDuplicate = response.data;
+
       if (isDuplicate) {
         Swal.fire('중복된 닉네임입니다!', '다른 닉네임을 입력해주세요.', 'error');
+        setIsDuplicateNickname(true);
       } else {
         Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
         setIsNicknameChecked(true);
+        setIsDuplicateNickname(false);
       }
     } catch (error) {
       console.error("닉네임 중복 체크 에러", error);
@@ -64,16 +59,25 @@ export default function SurveyAll() {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
-      {/* 기존 폼 생략... */}
+    <div style={{ position: 'relative', padding: 20 }}>
+      <div>
+        <label>닉네임</label>
+        <input
+          type="text"
+          name="nickname"
+          value={formData.nickname}
+          onChange={handleDemographicChange}
+        />
+        <button onClick={handleNicknameCheck}>중복 체크</button>
+      </div>
+
+      <button disabled={!isNicknameChecked || isDuplicateNickname}>제출</button>
 
       {isLoading && (
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
+          top: 0, left: 0,
+          width: '100vw', height: '100vh',
           backgroundColor: 'rgba(0,0,0,0.4)',
           zIndex: 9999,
           display: 'flex',
