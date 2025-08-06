@@ -17,7 +17,7 @@ export default function ShowtimeSelect() {
 
   const allowedDates = [
     //dayjs('2025-08-11'),
-    dayjs('2025-08-05'),
+    dayjs('2025-08-06'),
     dayjs('2025-08-12'),
   ];
 
@@ -27,8 +27,8 @@ export default function ShowtimeSelect() {
       { id: 1, time: '19:30', actors: ['김인주', '박정민', '이지민'] },
     ],
     */
-   '2025-08-05': [
-      { id: 1, time: '15:00', actors: ['김인주', '박정민', '이지민'] },
+   '2025-08-06': [
+      { id: 1, time: '16:00', actors: ['김인주', '박정민', '이지민'] },
     ],
     '2025-08-12': [
       { id: 2, time: '16:00', actors: ['김인주', '박정민', '이지민'] },
