@@ -28,7 +28,7 @@ export default function ShowtimeSelect() {
     ],
     */
    '2025-08-06': [
-      { id: 1, time: '16:00', actors: ['김인주', '박정민', '이지민'] },
+      { id: 1, time: '20:20', actors: ['김인주', '박정민', '이지민'] },
     ],
     '2025-08-12': [
       { id: 2, time: '16:00', actors: ['김인주', '박정민', '이지민'] },
