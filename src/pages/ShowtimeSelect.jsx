@@ -17,6 +17,7 @@ export default function ShowtimeSelect() {
   const { setViewDate } = useUserStore();
 
   const allowedDates = [
+    dayjs('2025-08-06'),
     dayjs('2025-08-08'),
     dayjs('2025-08-09'),
     dayjs('2025-08-10'),
