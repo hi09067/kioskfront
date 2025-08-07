@@ -71,7 +71,7 @@ export default function ShowtimeSelect() {
   async function handleAssignSeats(dateTimeStr) {
     try {
       const res = await axios.get(
-        `https://YOUR_BACKEND_SERVER_URL/assignSeatsForShowTime/${dateTimeStr}`
+        import.meta.env.VITE_BACK_SERVER + `/${dateTimeStr}`
       );
       Swal.fire('성공', '좌석 배정이 완료되었습니다.', 'success');
     } catch (error) {
