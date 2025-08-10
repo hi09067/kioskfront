@@ -45,34 +45,20 @@ export default function KioskAwarenessSurvey() {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  function handleChange(event) {
-    const { name, value } = event.target;
-    setAnswers(prev => ({ ...prev, [name]: value }));
-  }
-
-  function buildParticipationReason() {
-    // reasons 배열에서 '기타'가 체크되고 customReason이 있으면 치환
-    let final = reasons.slice();
-    if (final.includes('기타') && customReason.trim()) {
-      final = final.filter(r => r !== '기타').concat(customReason.trim());
-    }
-    // 문자열로 합치기 (원하면 구분자 변경 가능)
-    return final.join(', ');
-  }
-
   function handleSubmit(event) {
     event.preventDefault();
 
-    // 제출 직전에도 다시 확인
-    console.log("[handleSubmit store values]", {
-      viewDate,
-      nickName,
-      gender,
-      age,
-      region,
-      income,
-      reasons,
-      customReason
+    // 제출 직전 store 스냅샷
+    const snap = useUserStore.getState();
+    console.log('[submit/store]', {
+      nickName: snap.nickName,
+      viewDate: snap.viewDate,
+      gender: snap.gender,
+      age: snap.age,
+      region: snap.region,
+      income: snap.income,
+      reasons: snap.reasons,
+      customReason: snap.customReason,
     });
 
     if (Object.values(answers).some(answer => !answer)) {
@@ -80,46 +66,51 @@ export default function KioskAwarenessSurvey() {
       return;
     }
 
-    // ✅ 서버 DTO에 맞춘 receiptInfo 구성
+    // participationReason 만들기
+    const finalReasons = (() => {
+      const base = Array.isArray(snap.reasons) ? [...snap.reasons] : [];
+      if (base.includes('기타') && (snap.customReason || '').trim()) {
+        return base.filter(r => r !== '기타').concat(snap.customReason.trim());
+      }
+      return base;
+    })();
+
     const receiptInfo = {
-      // 기본 식별 정보
-      nickName: nickName,
-      viewDate: viewDate,
+      nickName: snap.nickName,
+      viewDate: snap.viewDate,
 
-      // 인구통계 (서버 필드명 맞춤)
-      gender: gender || '',
-      ageGroup: age || '',
-      residence: region || '',
-      monthlyIncome: income || '',
-      participationReason: buildParticipationReason(),
+      // 🔽 서버 DTO 필드명과 정확히 동일
+      gender: snap.gender || '',
+      ageGroup: snap.age || '',
+      residence: snap.region || '',
+      monthlyIncome: snap.income || '',
+      participationReason: finalReasons.join(', '),
 
-      // 설문 점수
-      surveyAnswerList: Object.entries(answers).map(([key, value], idx) => ({
+      surveyAnswerList: Object.entries(answers).map(([_, v], idx) => ({
         questionId: idx + 1,
-        answerScore: parseInt(value, 10),
+        answerScore: parseInt(v, 10),
       })),
     };
 
+    // 전송 직전 payload/JSON 문자열 찍기
+    console.log('[submit/payload object]', receiptInfo);
+    console.log('[submit/payload JSON]', JSON.stringify(receiptInfo, null, 2));
+
     setIsLoading(true);
 
-    
-    axiosInstance({
-      url: serverUrl + '/receipt',
-      method: 'post',
-      data: receiptInfo,
+    // 🔒 JSON으로 강제 전송 (인터셉터가 form-urlencoded로 바꾸는 경우 방지)
+    axiosInstance.post(serverUrl + '/receipt', receiptInfo, {
+      headers: { 'Content-Type': 'application/json' },
+      transformRequest: [(data) => JSON.stringify(data)], // ★ createInstance가 Qs.stringify 해도 무력화
     })
-      .then(function () {
-        navigate('/receipt');
-      })
-      .catch(function (err) {
-        alert("제출에 실패했습니다. 다시 시도해주세요.");
-        console.error(err);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-      
+    .then(() => navigate('/receipt'))
+    .catch((err) => {
+      alert('제출에 실패했습니다. 다시 시도해주세요.');
+      console.error(err);
+    })
+    .finally(() => setIsLoading(false));
   }
+
 
   function renderScaleQuestion(label, name) {
     return (
