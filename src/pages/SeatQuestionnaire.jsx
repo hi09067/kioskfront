@@ -102,7 +102,7 @@ export default function KioskAwarenessSurvey() {
 
     setIsLoading(true);
 
-    /* (테스트) aixos 주석 처리
+    
     axiosInstance({
       url: serverUrl + '/receipt',
       method: 'post',
@@ -118,7 +118,7 @@ export default function KioskAwarenessSurvey() {
       .finally(() => {
         setIsLoading(false);
       });
-      */
+      
   }
 
   function renderScaleQuestion(label, name) {
