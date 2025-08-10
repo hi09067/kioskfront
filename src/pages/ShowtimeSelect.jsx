@@ -17,15 +17,11 @@ export default function ShowtimeSelect() {
   const { setViewDate } = useUserStore();
 
   const allowedDates = [
-    dayjs('2025-08-10'),
     dayjs('2025-08-11'),
     dayjs('2025-08-12'),
   ];
 
   const showtimesByDate = {
-    '2025-08-10': [
-      { id: 1, time: '20:00', actors: ['김인주', '박정민', '이지민'] },
-    ],
     '2025-08-11': [
       { id: 1, time: '19:30', actors: ['김인주', '박정민', '이지민'] },
     ],
