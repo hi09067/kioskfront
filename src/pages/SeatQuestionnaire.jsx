@@ -12,8 +12,6 @@ export default function KioskAwarenessSurvey() {
   const {
     viewDate,
     nickName,
-
-    // 인구통계
     gender,     // 성별
     age,        // 나이대 → ageGroup
     region,     // 거주지 → residence
@@ -22,28 +20,12 @@ export default function KioskAwarenessSurvey() {
     customReason = '', // 기타 입력
   } = useUserStore();
 
-  //  store 값 콘솔로 찍기
-  console.log("[useUserStore values]", {
-    viewDate,
-    nickName,
-    gender,
-    age,
-    region,
-    income,
-    reasons,
-    customReason
-  });
-
   const [answers, setAnswers] = useState({
-    q1: '',
-    q2: '',
-    q3: '',
-    q4: '',
-    q5: '',
-    q6: ''
+    q1: '', q2: '', q3: '', q4: '', q5: '', q6: ''
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmUnlocked, setConfirmUnlocked] = useState(false); // ★ 한번 통과하면 이후부터 바로 제출
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -51,77 +33,81 @@ export default function KioskAwarenessSurvey() {
   }
 
   function buildParticipationReason() {
-    // reasons 배열에서 '기타'가 체크되고 customReason이 있으면 치환
     let final = reasons.slice();
     if (final.includes('기타') && customReason.trim()) {
       final = final.filter(r => r !== '기타').concat(customReason.trim());
     }
-    // 문자열로 합치기 (원하면 구분자 변경 가능)
     return final.join(', ');
   }
 
   function handleSubmit(event) {
-  event.preventDefault();
+    event.preventDefault();
 
-  // 제출 직전 store 스냅샷
-  const snap = useUserStore.getState();
-  console.log('[submit/store]', {
-    nickName: snap.nickName,
-    viewDate: snap.viewDate,
-    gender: snap.gender,
-    age: snap.age,
-    region: snap.region,
-    income: snap.income,
-    reasons: snap.reasons,
-    customReason: snap.customReason,
-  });
-
-  if (Object.values(answers).some(answer => !answer)) {
-    alert('모든 문항에 응답해주세요.');
-    return;
-  }
-
-  // participationReason 만들기
-  const finalReasons = (() => {
-    const base = Array.isArray(snap.reasons) ? [...snap.reasons] : [];
-    if (base.includes('기타') && (snap.customReason || '').trim()) {
-      return base.filter(r => r !== '기타').concat(snap.customReason.trim());
+    // 최초 한 번만 3단계 확인
+    if (!confirmUnlocked) {
+      if (!window.confirm('제출하시겠습니까?')) return;
+      if (!window.confirm('정말요?')) return;
+      if (!window.confirm('진짜 제출합니다?')) return;
+      setConfirmUnlocked(true); // 이후부터는 확인 없이 바로 진행
     }
-    return base;
-  })();
 
-  const receiptInfo = {
-    nickName: snap.nickName,
-    viewDate: snap.viewDate,
+    // 제출 직전 store 스냅샷
+    const snap = useUserStore.getState();
+    console.log('[submit/store]', {
+      nickName: snap.nickName,
+      viewDate: snap.viewDate,
+      gender: snap.gender,
+      age: snap.age,
+      region: snap.region,
+      income: snap.income,
+      reasons: snap.reasons,
+      customReason: snap.customReason,
+    });
 
-    // 🔽 서버 DTO 필드명과 정확히 동일
-    gender: snap.gender || '',
-    ageGroup: snap.age || '',
-    residence: snap.region || '',
-    monthlyIncome: snap.income || '',
-    participationReason: finalReasons.join(', '),
+    if (Object.values(answers).some(answer => !answer)) {
+      alert('모든 문항에 응답해주세요.');
+      return;
+    }
 
-    surveyAnswerList: Object.entries(answers).map(([_, v], idx) => ({
-      questionId: idx + 1,
-      answerScore: parseInt(v, 10),
-    })),
-  };
+    // participationReason 만들기 (store 기반)
+    const finalReasons = (() => {
+      const base = Array.isArray(snap.reasons) ? [...snap.reasons] : [];
+      if (base.includes('기타') && (snap.customReason || '').trim()) {
+        return base.filter(r => r !== '기타').concat(snap.customReason.trim());
+      }
+      return base;
+    })();
 
-  setIsLoading(true);
+    const receiptInfo = {
+      nickName: snap.nickName,
+      viewDate: snap.viewDate,
 
-  // 🔒 JSON으로 강제 전송 (인터셉터가 form-urlencoded로 바꾸는 경우 방지)
-  axiosInstance.post(serverUrl + '/receipt', receiptInfo, {
-    headers: { 'Content-Type': 'application/json' },
-    transformRequest: [(data) => JSON.stringify(data)], // ★ createInstance가 Qs.stringify 해도 무력화
-  })
-  .then(() => navigate('/receipt'))
-  .catch((err) => {
-    alert('제출에 실패했습니다. 다시 시도해주세요.');
-    console.error(err);
-  })
-  .finally(() => setIsLoading(false));
-}
+      // 🔽 서버 DTO 필드명과 정확히 동일
+      gender: snap.gender || '',
+      ageGroup: snap.age || '',
+      residence: snap.region || '',
+      monthlyIncome: snap.income || '',
+      participationReason: finalReasons.join(', '),
 
+      surveyAnswerList: Object.entries(answers).map(([_, v], idx) => ({
+        questionId: idx + 1,
+        answerScore: parseInt(v, 10),
+      })),
+    };
+
+    setIsLoading(true);
+
+    axiosInstance.post(serverUrl + '/receipt', receiptInfo, {
+      headers: { 'Content-Type': 'application/json' },
+      transformRequest: [(data) => JSON.stringify(data)],
+    })
+      .then(() => navigate('/receipt'))
+      .catch((err) => {
+        alert('제출에 실패했습니다. 다시 시도해주세요.');
+        console.error(err);
+      })
+      .finally(() => setIsLoading(false));
+  }
 
   function renderScaleQuestion(label, name) {
     return (

@@ -59,7 +59,7 @@ export default function SurveyAll() {
   const [reasons, setReasons] = useState([]);
   const [customReason, setCustomReasonLocal] = useState('');
 
-  // ❌ 구린 UX: 첫 클릭 후 버튼을 우상단으로 이동 → 두 번째 클릭부터 진짜 제출
+  // 첫 클릭 후 버튼을 우상단으로 이동 → 두 번째 클릭부터 진짜 제출
   const [movedTopRight, setMovedTopRight] = useState(false);
 
   // logs
@@ -163,8 +163,9 @@ export default function SurveyAll() {
     console.log('[onChange customReason]', v, ' | store.customReason ->', useUserStore.getState().customReason);
   };
 
-  // ❌ 구린 UX: 첫 클릭은 confirm+초기화(+텔레포트)만, 두 번째 클릭부터 실제 제출
-  const handleReasonSubmit = (e) => {
+  //첫 클릭은 confirm+초기화(+텔레포트)만, 두 번째 클릭부터 실제 제출
+  //첫 클릭은 confirm+초기화(+텔레포트)만, 두 번째 클릭부터 실제 제출
+const handleReasonSubmit = (e) => {
     e.preventDefault();
 
     if (!movedTopRight) {
@@ -175,7 +176,7 @@ export default function SurveyAll() {
         setReasons([]);
         setCustomReasonLocal('');
 
-        // store reset (reasons는 토글 제거 시도)
+        // store reset
         setNickName('');
         setGender('');
         setAge('');
@@ -185,11 +186,11 @@ export default function SurveyAll() {
         try {
           const curr = [...(useUserStore.getState().reasons || [])];
           curr.forEach((r) => toggleReason(r)); // 토글로 비우기
-        } catch (e) {
+        } catch (_) {
           // ignore
         }
 
-        // 닉네임 체크 상태도 리셋
+        // 닉네임 체크 상태 리셋
         setIsNicknameChecked(false);
         setIsDuplicateNickname(false);
       }
@@ -214,12 +215,17 @@ export default function SurveyAll() {
       return;
     }
 
+    // ✅ 여기서 한 번 더 물어보기
+    const okSubmit = window.confirm('제출하시겠습니까?');
+    if (!okSubmit) return;
+
     // 보수적으로 닉 재동기화
     setNickName(formData.nickname);
 
     // 👉 실제 다음 단계로 이동
     navigate('/questions');
   };
+
 
   // 구린 폰트 공통
   const badFont = {
