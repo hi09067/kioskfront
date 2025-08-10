@@ -1,5 +1,5 @@
 // src/pages/SurveyAll.jsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import createInstance from '../axios/Interceptor';
@@ -26,8 +26,19 @@ export default function SurveyAll() {
   const navigate = useNavigate();
   const axios = createInstance();
 
-  // ✅ store setters
+  // ✅ store setters & 값 조회(로깅용)
   const {
+    // values
+    nickName: sNickName,
+    gender: sGender,
+    age: sAge,
+    region: sRegion,
+    income: sIncome,
+    reasons: sReasons = [],
+    customReason: sCustomReason = '',
+    viewDate: sViewDate,
+
+    // setters
     setNickName,
     setGender,
     setAge,
@@ -51,6 +62,29 @@ export default function SurveyAll() {
   const [reasons, setReasons] = useState([]);
   const [customReason, setCustomReasonLocal] = useState('');
 
+  // 🔎 마운트 시 1회 스토어 스냅샷
+  useEffect(() => {
+    console.log('[SurveyAll mount] store snapshot:', {
+      sNickName, sGender, sAge, sRegion, sIncome, sReasons, sCustomReason, sViewDate
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 🔎 로컬 상태 변경 시마다 현재 스토어 값 비교 로그
+  useEffect(() => {
+    console.log('[SurveyAll formData changed]', formData, ' | store:', {
+      sNickName, sGender, sAge, sRegion, sIncome
+    });
+  }, [formData, sNickName, sGender, sAge, sRegion, sIncome]);
+
+  useEffect(() => {
+    console.log('[SurveyAll reasons changed]', reasons, ' | store:', sReasons);
+  }, [reasons, sReasons]);
+
+  useEffect(() => {
+    console.log('[SurveyAll customReason changed]', customReason, ' | store:', sCustomReason);
+  }, [customReason, sCustomReason]);
+
   // 필드 → store setter 매핑
   const fieldSetterMap = {
     gender: setGender,
@@ -70,8 +104,10 @@ export default function SurveyAll() {
       setNickName(value);
       setIsNicknameChecked(false); // 닉 변경 시 중복체크 무효화
       setIsDuplicateNickname(true);
+      console.log('[onChange nickname]', value, ' | store.nickName ->', useUserStore.getState().nickName);
     } else if (fieldSetterMap[name]) {
       fieldSetterMap[name](value);
+      console.log(`[onChange ${name}]`, value, ' | store ->', useUserStore.getState()[name]);
     }
   };
 
@@ -100,6 +136,8 @@ export default function SurveyAll() {
         setIsNicknameChecked(true);
         Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
       }
+
+      console.log('[nicknameCheck result]', { isDuplicate, formNickname: formData.nickname, storeNick: useUserStore.getState().nickName });
     } catch (error) {
       console.error('닉네임 중복 체크 에러', error);
       Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
@@ -124,12 +162,15 @@ export default function SurveyAll() {
 
     // store 반영
     toggleReason(value);
+
+    console.log('[onToggle reason]', { value, checked, localReasonsNext: checked ? [...reasons, value] : reasons.filter(r => r !== value), storeReasonsNext: useUserStore.getState().reasons });
   };
 
   const handleCustomReasonChange = (e) => {
     const v = e.target.value;
     setCustomReasonLocal(v);
     setCustomReason(v); // store 동기화
+    console.log('[onChange customReason]', v, ' | store.customReason ->', useUserStore.getState().customReason);
   };
 
   const handleReasonSubmit = (e) => {
@@ -144,13 +185,28 @@ export default function SurveyAll() {
     let finalReasons = reasons;
     if (reasons.includes('기타') && customReason.trim()) {
       finalReasons = reasons.filter((r) => r !== '기타').concat(customReason.trim());
-      // 필요하면 store에도 일치시키는 setReasons 전용 setter를 만들어 덮어쓰세요.
     }
 
     if (finalReasons.length === 0) {
       Swal.fire('오류', '참여 이유를 하나 이상 선택해주세요', 'error');
       return;
     }
+
+    // 🔎 제출 직전 스토어 스냅샷
+    const snap = useUserStore.getState();
+    console.log('[submit snapshot]', {
+      store: {
+        nickName: snap.nickName,
+        gender: snap.gender,
+        age: snap.age,
+        region: snap.region,
+        income: snap.income,
+        reasons: snap.reasons,
+        customReason: snap.customReason,
+        viewDate: snap.viewDate,
+      },
+      local: { formData, reasons, customReason, finalReasons },
+    });
 
     Swal.fire({
       title: '정말 제출하시겠습니까?',
@@ -170,9 +226,9 @@ export default function SurveyAll() {
           if (secondResult.isConfirmed) {
             // 닉네임은 입력 시마다 store 동기화됨(보수적으로 한번 더)
             setNickName(formData.nickname);
-            // 서버로 보낼 때 finalReasons 사용
-            // (예: axios.post('/api/demographic', { ...formData, reasons: finalReasons, customReason }))
+            console.log('[submit confirmed] nick reaffirmed:', formData.nickname, ' | store.nickName ->', useUserStore.getState().nickName);
 
+            // 서버로 보낼 때는 다음 페이지에서 수집한 응답과 합쳐서 보내세요.
             navigate('/questions');
           }
         });
