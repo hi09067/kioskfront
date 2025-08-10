@@ -104,10 +104,8 @@ export default function SurveyAll() {
       setNickName(value);
       setIsNicknameChecked(false); // 닉 변경 시 중복체크 무효화
       setIsDuplicateNickname(true);
-      console.log('[onChange nickname]', value, ' | store.nickName ->', useUserStore.getState().nickName);
     } else if (fieldSetterMap[name]) {
       fieldSetterMap[name](value);
-      console.log(`[onChange ${name}]`, value, ' | store ->', useUserStore.getState()[name]);
     }
   };
 

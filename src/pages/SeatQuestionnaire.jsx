@@ -107,10 +107,6 @@ export default function KioskAwarenessSurvey() {
     })),
   };
 
-  // 전송 직전 payload/JSON 문자열 찍기
-  console.log('[submit/payload object]', receiptInfo);
-  console.log('[submit/payload JSON]', JSON.stringify(receiptInfo, null, 2));
-
   setIsLoading(true);
 
   // 🔒 JSON으로 강제 전송 (인터셉터가 form-urlencoded로 바꾸는 경우 방지)
