@@ -26,7 +26,6 @@ export default function SurveyAll() {
   const navigate = useNavigate();
   const axios = createInstance();
 
-  // store values & setters
   const {
     nickName: sNickName,
     gender: sGender,
@@ -45,7 +44,6 @@ export default function SurveyAll() {
     setCustomReason,
   } = useUserStore();
 
-  // local UI state
   const [formData, setFormData] = useState({
     nickname: '',
     gender: '',
@@ -59,10 +57,9 @@ export default function SurveyAll() {
   const [reasons, setReasons] = useState([]);
   const [customReason, setCustomReasonLocal] = useState('');
 
-  // 첫 클릭 후 버튼을 우상단으로 이동 → 두 번째 클릭부터 진짜 제출
+  // 첫 클릭 후 버튼 우상단 이동 → 두 번째 클릭부터 실제 제출
   const [movedTopRight, setMovedTopRight] = useState(false);
 
-  // logs
   useEffect(() => {
     console.log('[SurveyAll mount] store snapshot:', {
       sNickName, sGender, sAge, sRegion, sIncome, sReasons, sCustomReason, sViewDate
@@ -81,7 +78,6 @@ export default function SurveyAll() {
     console.log('[SurveyAll customReason changed]', customReason, ' | store:', sCustomReason);
   }, [customReason, sCustomReason]);
 
-  // field -> store setter
   const fieldSetterMap = {
     gender: setGender,
     age: setAge,
@@ -104,7 +100,7 @@ export default function SurveyAll() {
 
   const handleNicknameCheck = async () => {
     if (!formData.nickname.trim()) {
-      Swal.fire('닉네임을 입력해주세요.', '', 'error');
+      await Swal.fire('닉네임을 입력해주세요.', '', 'error');
       return;
     }
 
@@ -121,17 +117,21 @@ export default function SurveyAll() {
       if (isDuplicate) {
         setIsDuplicateNickname(true);
         setIsNicknameChecked(true);
-        Swal.fire('중복된 닉네임입니다!', '다른 닉네임을 입력해주세요.', 'error');
+        await Swal.fire('중복된 닉네임입니다!', '다른 닉네임을 입력해주세요.', 'error');
       } else {
         setIsDuplicateNickname(false);
         setIsNicknameChecked(true);
-        Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
+        await Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
       }
 
-      console.log('[nicknameCheck result]', { isDuplicate, formNickname: formData.nickname, storeNick: useUserStore.getState().nickName });
+      console.log('[nicknameCheck result]', {
+        isDuplicate,
+        formNickname: formData.nickname,
+        storeNick: useUserStore.getState().nickName
+      });
     } catch (error) {
       console.error('닉네임 중복 체크 에러', error);
-      Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
+      await Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -142,11 +142,7 @@ export default function SurveyAll() {
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target;
-
-    // local
     setReasons((prev) => (checked ? [...prev, value] : prev.filter((r) => r !== value)));
-
-    // store toggle
     toggleReason(value);
 
     console.log('[onToggle reason]', {
@@ -163,83 +159,95 @@ export default function SurveyAll() {
     console.log('[onChange customReason]', v, ' | store.customReason ->', useUserStore.getState().customReason);
   };
 
-  //첫 클릭은 confirm+초기화(+텔레포트)만, 두 번째 클릭부터 실제 제출
-// ⬇︎ 기존 함수 선언을 async로 변경
-const handleReasonSubmit = async (e) => {
-  e.preventDefault();
+  // 첫 클릭: 초기화 여부(Swal) → 텔레포트
+  // 두 번째 클릭 이후: 검증 → (Swal 2단계 확인) → 제출
+  const handleReasonSubmit = async (e) => {
+    e.preventDefault();
 
-  if (!movedTopRight) {
-    const ok = window.confirm('초기화하시겠습니까?');
-    if (ok) {
-      // ... (초기화 로직 그대로)
-      setFormData({ nickname: '', gender: '', age: '', region: '', income: '' });
-      setReasons([]);
-      setCustomReasonLocal('');
-      setNickName('');
-      setGender('');
-      setAge('');
-      setRegion('');
-      setIncome('');
-      setCustomReason('');
-      try {
-        const curr = [...(useUserStore.getState().reasons || [])];
-        curr.forEach((r) => toggleReason(r));
-      } catch (_) {}
-      setIsNicknameChecked(false);
-      setIsDuplicateNickname(false);
+    if (!movedTopRight) {
+      const okReset = await Swal.fire({
+        title: '초기화하시겠습니까?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '예',
+        cancelButtonText: '아니오',
+        reverseButtons: true,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+      });
+
+      if (okReset.isConfirmed) {
+        // local reset
+        setFormData({ nickname: '', gender: '', age: '', region: '', income: '' });
+        setReasons([]);
+        setCustomReasonLocal('');
+
+        // store reset
+        setNickName('');
+        setGender('');
+        setAge('');
+        setRegion('');
+        setIncome('');
+        setCustomReason('');
+        try {
+          const curr = [...(useUserStore.getState().reasons || [])];
+          curr.forEach((r) => toggleReason(r)); // 토글로 비우기
+        } catch (_) { /* ignore */ }
+
+        setIsNicknameChecked(false);
+        setIsDuplicateNickname(false);
+      }
+
+      setMovedTopRight(true); // 확인창을 본 뒤엔 위치 이동
+      return; // 첫 클릭은 제출하지 않음
     }
-    setMovedTopRight(true);
-    return; // ← 첫 클릭은 여기서 종료 (텔레포트만)
-  }
 
-  // 두 번째 클릭 이후: 실제 제출(기존 검증 유지)
-  if (!isNicknameChecked) {
-    await Swal.fire('닉네임 중복 체크를 해주세요!', '', 'error');
-    return;
-  }
+    // 두 번째 클릭 이후 실제 제출
+    if (!isNicknameChecked) {
+      await Swal.fire('닉네임 중복 체크를 해주세요!', '', 'error');
+      return;
+    }
 
-  let finalReasons = reasons;
-  if (reasons.includes('기타') && customReason.trim()) {
-    finalReasons = reasons.filter((r) => r !== '기타').concat(customReason.trim());
-  }
-  if (finalReasons.length === 0) {
-    await Swal.fire('오류', '참여 이유를 하나 이상 선택해주세요', 'error');
-    return;
-  }
+    let finalReasons = reasons;
+    if (reasons.includes('기타') && customReason.trim()) {
+      finalReasons = reasons.filter((r) => r !== '기타').concat(customReason.trim());
+    }
+    if (finalReasons.length === 0) {
+      await Swal.fire('오류', '참여 이유를 하나 이상 선택해주세요', 'error');
+      return;
+    }
 
-  // ✅ 여기서 SweetAlert로 2단계 확인
-  const first = await Swal.fire({
-    title: '제출하시겠습니까?',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: '예',
-    cancelButtonText: '아니오',
-    reverseButtons: true,
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-  });
-  if (!first.isConfirmed) return;
+    // 제출 전 2단계 확인
+    const first = await Swal.fire({
+      title: '제출하시겠습니까?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '예',
+      cancelButtonText: '아니오',
+      reverseButtons: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+    });
+    if (!first.isConfirmed) return;
 
-  const second = await Swal.fire({
-    title: '정말요?',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: '예',
-    cancelButtonText: '아니오',
-    reverseButtons: true,
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-  });
-  if (!second.isConfirmed) return;
+    const second = await Swal.fire({
+      title: '정말요?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '예',
+      cancelButtonText: '아니오',
+      reverseButtons: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+    });
+    if (!second.isConfirmed) return;
 
-  // 제출 진행
-  setNickName(formData.nickname);
-  navigate('/questions');
-};
+    // 보수적으로 닉 재동기화 후 다음 단계 이동
+    setNickName(formData.nickname);
+    navigate('/questions');
+  };
 
-
-
-  // 구린 폰트 공통
+  // 일부러 구린 폰트 설정(요구사항)
   const badFont = {
     fontFamily: '"Comic Sans MS", "Papyrus", cursive, fantasy, serif',
     letterSpacing: '0.6px',
@@ -248,7 +256,6 @@ const handleReasonSubmit = async (e) => {
 
   return (
     <>
-      {/* 메인 내용 영역 */}
       <div
         style={{
           padding: 40,
