@@ -7,7 +7,20 @@ export default function KioskAwarenessSurvey() {
   const serverUrl = import.meta.env.VITE_BACK_SERVER;
   const axiosInstance = createInstance();
   const navigate = useNavigate();
-  const { setViewDate, viewDate, setNickName, nickName } = useUserStore();
+
+  // ✅ store에서 필요한 값 모두 가져오기
+  const {
+    viewDate,
+    nickName,
+
+    // 인구통계
+    gender,     // 성별
+    age,        // 나이대 → ageGroup
+    region,     // 거주지 → residence
+    income,     // 월 소득 → monthlyIncome
+    reasons = [],      // 관람 이유(배열)
+    customReason = '', // 기타 입력
+  } = useUserStore();
 
   const [answers, setAnswers] = useState({
     q1: '',
@@ -25,6 +38,16 @@ export default function KioskAwarenessSurvey() {
     setAnswers(prev => ({ ...prev, [name]: value }));
   }
 
+  function buildParticipationReason() {
+    // reasons 배열에서 '기타'가 체크되고 customReason이 있으면 치환
+    let final = reasons.slice();
+    if (final.includes('기타') && customReason.trim()) {
+      final = final.filter(r => r !== '기타').concat(customReason.trim());
+    }
+    // 문자열로 합치기 (원하면 구분자 변경 가능)
+    return final.join(', ');
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
 
@@ -33,13 +56,24 @@ export default function KioskAwarenessSurvey() {
       return;
     }
 
+    // ✅ 서버 DTO에 맞춘 receiptInfo 구성
     const receiptInfo = {
+      // 기본 식별 정보
       nickName: nickName,
       viewDate: viewDate,
+
+      // 인구통계 (서버 필드명 맞춤)
+      gender: gender || '',
+      ageGroup: age || '',
+      residence: region || '',
+      monthlyIncome: income || '',
+      participationReason: buildParticipationReason(),
+
+      // 설문 점수
       surveyAnswerList: Object.entries(answers).map(([key, value], idx) => ({
         questionId: idx + 1,
-        answerScore: parseInt(value),
-      }))
+        answerScore: parseInt(value, 10),
+      })),
     };
 
     setIsLoading(true);
@@ -49,7 +83,7 @@ export default function KioskAwarenessSurvey() {
       method: 'post',
       data: receiptInfo,
     })
-      .then(function (res) {
+      .then(function () {
         navigate('/receipt');
       })
       .catch(function (err) {

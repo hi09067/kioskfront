@@ -1,7 +1,8 @@
+// src/pages/SurveyAll.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Swal from "sweetalert2";
-import createInstance from "../axios/Interceptor";
+import Swal from 'sweetalert2';
+import createInstance from '../axios/Interceptor';
 import useUserStore from '../store/useUserStore';
 
 const demographicQuestions = [
@@ -18,48 +19,74 @@ const reasonOptions = [
   '티켓 가격이 저렴해서',
   '시간대가 맞아서',
   '지인의 추천',
-  '기타'
+  '기타',
 ];
 
 export default function SurveyAll() {
-  const { setNickName } = useUserStore();
   const navigate = useNavigate();
   const axios = createInstance();
 
+  // ✅ store setters
+  const {
+    setNickName,
+    setGender,
+    setAge,
+    setRegion,
+    setIncome,
+    toggleReason,
+    setCustomReason,
+  } = useUserStore();
+
+  // 로컬 UI 상태
   const [formData, setFormData] = useState({
     nickname: '',
     gender: '',
     age: '',
     region: '',
-    income: ''
+    income: '',
   });
-
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
   const [isDuplicateNickname, setIsDuplicateNickname] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [reasons, setReasons] = useState([]);
-  const [customReason, setCustomReason] = useState('');
+  const [customReason, setCustomReasonLocal] = useState('');
+
+  // 필드 → store setter 매핑
+  const fieldSetterMap = {
+    gender: setGender,
+    age: setAge,
+    region: setRegion,
+    income: setIncome,
+  };
 
   const handleDemographicChange = (e) => {
     const { name, value } = e.target;
+
+    // 로컬 반영
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // store 반영
     if (name === 'nickname') {
-      setIsNicknameChecked(false); // 닉네임 바뀌면 중복체크 무효화
+      setNickName(value);
+      setIsNicknameChecked(false); // 닉 변경 시 중복체크 무효화
       setIsDuplicateNickname(true);
+    } else if (fieldSetterMap[name]) {
+      fieldSetterMap[name](value);
     }
-    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleNicknameCheck = async () => {
+    if (!formData.nickname.trim()) {
+      Swal.fire('닉네임을 입력해주세요.', '', 'error');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await axios.post(
         import.meta.env.VITE_BACK_SERVER + '/isDuplicateNickname',
         formData.nickname,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
+        { headers: { 'Content-Type': 'application/json' } }
       );
 
       const isDuplicate = response.data;
@@ -74,26 +101,38 @@ export default function SurveyAll() {
         Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
       }
     } catch (error) {
-      console.error("닉네임 중복 체크 에러", error);
+      console.error('닉네임 중복 체크 에러', error);
       Swal.fire('오류', '닉네임 중복 체크 중 문제가 발생했습니다.', 'error');
-    }finally{
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const isAnswered = (name) => formData[name] && formData[name].trim() !== '';
-  const allDemographicsAnswered = demographicQuestions.every(q => isAnswered(q.name));
+  const isAnswered = (name) =>
+    formData[name] && String(formData[name]).trim() !== '';
+  const allDemographicsAnswered = demographicQuestions.every((q) =>
+    isAnswered(q.name)
+  );
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target;
-    setReasons(prev =>
-      checked ? [...prev, value] : prev.filter(reason => reason !== value)
+
+    // 로컬 UI 반영
+    setReasons((prev) =>
+      checked ? [...prev, value] : prev.filter((r) => r !== value)
     );
+
+    // store 반영
+    toggleReason(value);
   };
 
-  const handleCustomReasonChange = (e) => setCustomReason(e.target.value);
+  const handleCustomReasonChange = (e) => {
+    const v = e.target.value;
+    setCustomReasonLocal(v);
+    setCustomReason(v); // store 동기화
+  };
 
-  function handleReasonSubmit(e) {
+  const handleReasonSubmit = (e) => {
     e.preventDefault();
 
     if (!isNicknameChecked) {
@@ -101,9 +140,11 @@ export default function SurveyAll() {
       return;
     }
 
+    // ‘기타’ 텍스트로 치환한 최종 이유
     let finalReasons = reasons;
     if (reasons.includes('기타') && customReason.trim()) {
-      finalReasons = reasons.filter(r => r !== '기타').concat(customReason.trim());
+      finalReasons = reasons.filter((r) => r !== '기타').concat(customReason.trim());
+      // 필요하면 store에도 일치시키는 setReasons 전용 setter를 만들어 덮어쓰세요.
     }
 
     if (finalReasons.length === 0) {
@@ -127,64 +168,82 @@ export default function SurveyAll() {
           cancelButtonText: '아니요',
         }).then((secondResult) => {
           if (secondResult.isConfirmed) {
+            // 닉네임은 입력 시마다 store 동기화됨(보수적으로 한번 더)
             setNickName(formData.nickname);
+            // 서버로 보낼 때 finalReasons 사용
+            // (예: axios.post('/api/demographic', { ...formData, reasons: finalReasons, customReason }))
+
             navigate('/questions');
           }
         });
       }
     });
-  }
+  };
 
   return (
     <>
       {/* 메인 내용 영역 */}
-      <div style={{
-        padding: 40,
-        maxWidth: 560,
-        margin: '40px auto',
-        fontFamily: 'Arial, sans-serif',
-        backgroundColor: '#f9f9f9',
-        borderRadius: 10,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-      }}>
-        <h2 style={{
-          textAlign: 'center',
-          fontSize: 32,
-          marginBottom: 32,
-          color: '#333'
-        }}>
+      <div
+        style={{
+          padding: 40,
+          maxWidth: 560,
+          margin: '40px auto',
+          fontFamily: 'Arial, sans-serif',
+          backgroundColor: '#f9f9f9',
+          borderRadius: 10,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        }}
+      >
+        <h2
+          style={{
+            textAlign: 'center',
+            fontSize: 32,
+            marginBottom: 32,
+            color: '#333',
+          }}
+        >
           응답자 정보를 입력해주세요
         </h2>
 
         {demographicQuestions.map((question, index) => {
-          const canShow = demographicQuestions.slice(0, index).every(q => isAnswered(q.name));
+          const canShow = demographicQuestions
+            .slice(0, index)
+            .every((q) => isAnswered(q.name));
           const isOdd = index % 2 === 1;
 
           return canShow ? (
-            <div key={question.name} style={{
-              marginBottom: 36,
-              display: 'flex',
-              flexDirection: isOdd ? 'row-reverse' : 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 20
-            }}>
-              <label htmlFor={question.name} style={{
-                flexBasis: '40%',
-                textAlign: isOdd ? 'right' : 'left',
-                fontWeight: '700',
-                fontSize: 22,
-                color: '#555',
-                userSelect: 'none',
-                whiteSpace: 'nowrap'
-              }}>
+            <div
+              key={question.name}
+              style={{
+                marginBottom: 36,
+                display: 'flex',
+                flexDirection: isOdd ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 20,
+              }}
+            >
+              <label
+                htmlFor={question.name}
+                style={{
+                  flexBasis: '40%',
+                  textAlign: isOdd ? 'right' : 'left',
+                  fontWeight: '700',
+                  fontSize: 22,
+                  color: '#555',
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {question.label}
               </label>
 
-              <div style={{
-                flexBasis: isOdd ? '50%' : '55%',
-                textAlign: isOdd ? 'left' : 'right'
-              }}>
+              <div
+                style={{
+                  flexBasis: isOdd ? '50%' : '55%',
+                  textAlign: isOdd ? 'left' : 'right',
+                }}
+              >
                 {question.type === 'text' && question.name === 'nickname' && (
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
@@ -200,10 +259,10 @@ export default function SurveyAll() {
                         borderRadius: 8,
                         border: '2px solid #aaa',
                         outline: 'none',
-                        transition: 'border-color 0.2s'
+                        transition: 'border-color 0.2s',
                       }}
-                      onFocus={e => (e.target.style.borderColor = '#007bff')}
-                      onBlur={e => (e.target.style.borderColor = '#aaa')}
+                      onFocus={(e) => (e.target.style.borderColor = '#007bff')}
+                      onBlur={(e) => (e.target.style.borderColor = '#aaa')}
                       autoComplete="off"
                     />
                     <button
@@ -216,36 +275,41 @@ export default function SurveyAll() {
                         color: 'white',
                         border: 'none',
                         borderRadius: 8,
-                        cursor: 'pointer'
-                      }}>
+                        cursor: 'pointer',
+                      }}
+                    >
                       중복 체크
                     </button>
                   </div>
                 )}
 
-                {question.type === 'radio' && question.options.map(option => (
-                  <label key={option} style={{
-                    marginRight: 16,
-                    cursor: 'pointer',
-                    fontSize: 20,
-                    userSelect: 'none'
-                  }}>
-                    <input
-                      type="radio"
-                      name={question.name}
-                      value={option}
-                      checked={formData[question.name] === option}
-                      onChange={handleDemographicChange}
+                {question.type === 'radio' &&
+                  question.options.map((option) => (
+                    <label
+                      key={option}
                       style={{
-                        marginRight: 8,
+                        marginRight: 16,
                         cursor: 'pointer',
-                        width: 24,
-                        height: 24
+                        fontSize: 20,
+                        userSelect: 'none',
                       }}
-                    />
-                    {option}
-                  </label>
-                ))}
+                    >
+                      <input
+                        type="radio"
+                        name={question.name}
+                        value={option}
+                        checked={formData[question.name] === option}
+                        onChange={handleDemographicChange}
+                        style={{
+                          marginRight: 8,
+                          cursor: 'pointer',
+                          width: 24,
+                          height: 24,
+                        }}
+                      />
+                      {option}
+                    </label>
+                  ))}
 
                 {question.type === 'select' && (
                   <select
@@ -260,14 +324,16 @@ export default function SurveyAll() {
                       border: '2px solid #aaa',
                       outline: 'none',
                       transition: 'border-color 0.2s',
-                      textAlignLast: 'center'
+                      textAlignLast: 'center',
                     }}
-                    onFocus={e => (e.target.style.borderColor = '#007bff')}
-                    onBlur={e => (e.target.style.borderColor = '#aaa')}
+                    onFocus={(e) => (e.target.style.borderColor = '#007bff')}
+                    onBlur={(e) => (e.target.style.borderColor = '#aaa')}
                   >
                     <option value="">선택</option>
-                    {question.options.map(option => (
-                      <option key={option} value={option}>{option}</option>
+                    {question.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
                     ))}
                   </select>
                 )}
@@ -278,28 +344,40 @@ export default function SurveyAll() {
 
         {allDemographicsAnswered && (
           <>
-            <h2 style={{
-              marginTop: 48,
-              textAlign: 'center',
-              color: '#333',
-              fontSize: 28,
-              fontWeight: '700',
-              marginBottom: 20
-            }}>
+            <h2
+              style={{
+                marginTop: 48,
+                textAlign: 'center',
+                color: '#333',
+                fontSize: 28,
+                fontWeight: '700',
+                marginBottom: 20,
+              }}
+            >
               관람 또는 참여 이유가 무엇입니까?
             </h2>
 
             <form onSubmit={handleReasonSubmit}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
-                {reasonOptions.map(reason => (
-                  <label key={reason} style={{
-                    cursor: 'pointer',
-                    fontSize: 22,
-                    userSelect: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12
-                  }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
+                  marginBottom: 28,
+                }}
+              >
+                {reasonOptions.map((reason) => (
+                  <label
+                    key={reason}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: 22,
+                      userSelect: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                    }}
+                  >
                     <input
                       type="checkbox"
                       value={reason}
@@ -314,13 +392,18 @@ export default function SurveyAll() {
 
               {reasons.includes('기타') && (
                 <div style={{ marginBottom: 28 }}>
-                  <label htmlFor="customReason" style={{
-                    fontWeight: '700',
-                    fontSize: 20,
-                    marginBottom: 8,
-                    display: 'block',
-                    userSelect: 'none'
-                  }}>기타 이유:</label>
+                  <label
+                    htmlFor="customReason"
+                    style={{
+                      fontWeight: '700',
+                      fontSize: 20,
+                      marginBottom: 8,
+                      display: 'block',
+                      userSelect: 'none',
+                    }}
+                  >
+                    기타 이유:
+                  </label>
                   <input
                     id="customReason"
                     type="text"
@@ -334,10 +417,10 @@ export default function SurveyAll() {
                       borderRadius: 8,
                       border: '2px solid #aaa',
                       outline: 'none',
-                      transition: 'border-color 0.2s'
+                      transition: 'border-color 0.2s',
                     }}
-                    onFocus={e => (e.target.style.borderColor = '#007bff')}
-                    onBlur={e => (e.target.style.borderColor = '#aaa')}
+                    onFocus={(e) => (e.target.style.borderColor = '#007bff')}
+                    onBlur={(e) => (e.target.style.borderColor = '#aaa')}
                   />
                 </div>
               )}
@@ -356,7 +439,7 @@ export default function SurveyAll() {
                   backgroundColor: isNicknameChecked ? '#007bff' : '#ccc',
                   color: 'white',
                   cursor: isNicknameChecked ? 'pointer' : 'not-allowed',
-                  transition: 'background-color 0.3s'
+                  transition: 'background-color 0.3s',
                 }}
               >
                 제출
@@ -367,34 +450,39 @@ export default function SurveyAll() {
       </div>
 
       {isLoading && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0,
-          width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.4)',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontSize: '2rem',
-          fontWeight: 'bold'
-        }}>
-          <div className="spinner" style={{
-            border: '8px solid rgba(255,255,255,0.3)',
-            borderTop: '8px solid white',
-            borderRadius: '50%',
-            width: '80px',
-            height: '80px',
-            animation: 'spin 1s linear infinite',
-            marginBottom: '24px'
-          }} />
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '2rem',
+            fontWeight: 'bold',
+          }}
+        >
+          <div
+            className="spinner"
+            style={{
+              border: '8px solid rgba(255,255,255,0.3)',
+              borderTop: '8px solid white',
+              borderRadius: '50%',
+              width: '80px',
+              height: '80px',
+              animation: 'spin 1s linear infinite',
+              marginBottom: '24px',
+            }}
+          />
           닉네임 중복 확인 중...
         </div>
       )}
-
     </>
   );
-
 }
