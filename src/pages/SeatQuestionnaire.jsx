@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import createInstance from "../axios/Interceptor";
 import useUserStore from '../store/useUserStore';
 
@@ -40,14 +41,36 @@ export default function KioskAwarenessSurvey() {
     return final.join(', ');
   }
 
-  function handleSubmit(event) {
+  // 🔁 Swal로 3단계 확인 처리
+  async function runTripleConfirm() {
+    const common = {
+      showCancelButton: true,
+      confirmButtonText: '예',
+      cancelButtonText: '아니오',
+      reverseButtons: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+    };
+
+    const s1 = await Swal.fire({ title: '제출하시겠습니까?', icon: 'question', ...common });
+    if (!s1.isConfirmed) return false;
+
+    const s2 = await Swal.fire({ title: '정말요?', icon: 'warning', ...common });
+    if (!s2.isConfirmed) return false;
+
+    const s3 = await Swal.fire({ title: '이젠 정말 무를 수 없습니다.', icon: 'warning', ...common });
+    if (!s3.isConfirmed) return false;
+
+    return true;
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault();
 
     // 최초 한 번만 3단계 확인
     if (!confirmUnlocked) {
-      if (!window.confirm('제출하시겠습니까?')) return;
-      if (!window.confirm('정말요?')) return;
-      if (!window.confirm('진짜 제출합니다?')) return;
+      const ok = await runTripleConfirm();
+      if (!ok) return;
       setConfirmUnlocked(true); // 이후부터는 확인 없이 바로 진행
     }
 
@@ -65,7 +88,7 @@ export default function KioskAwarenessSurvey() {
     });
 
     if (Object.values(answers).some(answer => !answer)) {
-      alert('모든 문항에 응답해주세요.');
+      await Swal.fire({ icon: 'error', title: '모든 문항에 응답해주세요.' });
       return;
     }
 
@@ -102,9 +125,9 @@ export default function KioskAwarenessSurvey() {
       transformRequest: [(data) => JSON.stringify(data)],
     })
       .then(() => navigate('/receipt'))
-      .catch((err) => {
-        alert('제출에 실패했습니다. 다시 시도해주세요.');
+      .catch(async (err) => {
         console.error(err);
+        await Swal.fire({ icon: 'error', title: '제출에 실패했습니다.', text: '다시 시도해주세요.' });
       })
       .finally(() => setIsLoading(false));
   }
