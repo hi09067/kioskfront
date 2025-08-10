@@ -22,6 +22,18 @@ export default function KioskAwarenessSurvey() {
     customReason = '', // 기타 입력
   } = useUserStore();
 
+  //  store 값 콘솔로 찍기
+  console.log("[useUserStore values]", {
+    viewDate,
+    nickName,
+    gender,
+    age,
+    region,
+    income,
+    reasons,
+    customReason
+  });
+
   const [answers, setAnswers] = useState({
     q1: '',
     q2: '',
@@ -51,6 +63,18 @@ export default function KioskAwarenessSurvey() {
   function handleSubmit(event) {
     event.preventDefault();
 
+    // 제출 직전에도 다시 확인
+    console.log("[handleSubmit store values]", {
+      viewDate,
+      nickName,
+      gender,
+      age,
+      region,
+      income,
+      reasons,
+      customReason
+    });
+
     if (Object.values(answers).some(answer => !answer)) {
       alert('모든 문항에 응답해주세요.');
       return;
@@ -78,6 +102,7 @@ export default function KioskAwarenessSurvey() {
 
     setIsLoading(true);
 
+    /* (테스트) aixos 주석 처리
     axiosInstance({
       url: serverUrl + '/receipt',
       method: 'post',
@@ -93,6 +118,7 @@ export default function KioskAwarenessSurvey() {
       .finally(() => {
         setIsLoading(false);
       });
+      */
   }
 
   function renderScaleQuestion(label, name) {
