@@ -45,71 +45,86 @@ export default function KioskAwarenessSurvey() {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  function handleSubmit(event) {
-    event.preventDefault();
-
-    // 제출 직전 store 스냅샷
-    const snap = useUserStore.getState();
-    console.log('[submit/store]', {
-      nickName: snap.nickName,
-      viewDate: snap.viewDate,
-      gender: snap.gender,
-      age: snap.age,
-      region: snap.region,
-      income: snap.income,
-      reasons: snap.reasons,
-      customReason: snap.customReason,
-    });
-
-    if (Object.values(answers).some(answer => !answer)) {
-      alert('모든 문항에 응답해주세요.');
-      return;
-    }
-
-    // participationReason 만들기
-    const finalReasons = (() => {
-      const base = Array.isArray(snap.reasons) ? [...snap.reasons] : [];
-      if (base.includes('기타') && (snap.customReason || '').trim()) {
-        return base.filter(r => r !== '기타').concat(snap.customReason.trim());
-      }
-      return base;
-    })();
-
-    const receiptInfo = {
-      nickName: snap.nickName,
-      viewDate: snap.viewDate,
-
-      // 🔽 서버 DTO 필드명과 정확히 동일
-      gender: snap.gender || '',
-      ageGroup: snap.age || '',
-      residence: snap.region || '',
-      monthlyIncome: snap.income || '',
-      participationReason: finalReasons.join(', '),
-
-      surveyAnswerList: Object.entries(answers).map(([_, v], idx) => ({
-        questionId: idx + 1,
-        answerScore: parseInt(v, 10),
-      })),
-    };
-
-    // 전송 직전 payload/JSON 문자열 찍기
-    console.log('[submit/payload object]', receiptInfo);
-    console.log('[submit/payload JSON]', JSON.stringify(receiptInfo, null, 2));
-
-    setIsLoading(true);
-
-    // 🔒 JSON으로 강제 전송 (인터셉터가 form-urlencoded로 바꾸는 경우 방지)
-    axiosInstance.post(serverUrl + '/receipt', receiptInfo, {
-      headers: { 'Content-Type': 'application/json' },
-      transformRequest: [(data) => JSON.stringify(data)], // ★ createInstance가 Qs.stringify 해도 무력화
-    })
-    .then(() => navigate('/receipt'))
-    .catch((err) => {
-      alert('제출에 실패했습니다. 다시 시도해주세요.');
-      console.error(err);
-    })
-    .finally(() => setIsLoading(false));
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setAnswers(prev => ({ ...prev, [name]: value }));
   }
+
+  function buildParticipationReason() {
+    // reasons 배열에서 '기타'가 체크되고 customReason이 있으면 치환
+    let final = reasons.slice();
+    if (final.includes('기타') && customReason.trim()) {
+      final = final.filter(r => r !== '기타').concat(customReason.trim());
+    }
+    // 문자열로 합치기 (원하면 구분자 변경 가능)
+    return final.join(', ');
+  }
+
+  function handleSubmit(event) {
+  event.preventDefault();
+
+  // 제출 직전 store 스냅샷
+  const snap = useUserStore.getState();
+  console.log('[submit/store]', {
+    nickName: snap.nickName,
+    viewDate: snap.viewDate,
+    gender: snap.gender,
+    age: snap.age,
+    region: snap.region,
+    income: snap.income,
+    reasons: snap.reasons,
+    customReason: snap.customReason,
+  });
+
+  if (Object.values(answers).some(answer => !answer)) {
+    alert('모든 문항에 응답해주세요.');
+    return;
+  }
+
+  // participationReason 만들기
+  const finalReasons = (() => {
+    const base = Array.isArray(snap.reasons) ? [...snap.reasons] : [];
+    if (base.includes('기타') && (snap.customReason || '').trim()) {
+      return base.filter(r => r !== '기타').concat(snap.customReason.trim());
+    }
+    return base;
+  })();
+
+  const receiptInfo = {
+    nickName: snap.nickName,
+    viewDate: snap.viewDate,
+
+    // 🔽 서버 DTO 필드명과 정확히 동일
+    gender: snap.gender || '',
+    ageGroup: snap.age || '',
+    residence: snap.region || '',
+    monthlyIncome: snap.income || '',
+    participationReason: finalReasons.join(', '),
+
+    surveyAnswerList: Object.entries(answers).map(([_, v], idx) => ({
+      questionId: idx + 1,
+      answerScore: parseInt(v, 10),
+    })),
+  };
+
+  // 전송 직전 payload/JSON 문자열 찍기
+  console.log('[submit/payload object]', receiptInfo);
+  console.log('[submit/payload JSON]', JSON.stringify(receiptInfo, null, 2));
+
+  setIsLoading(true);
+
+  // 🔒 JSON으로 강제 전송 (인터셉터가 form-urlencoded로 바꾸는 경우 방지)
+  axiosInstance.post(serverUrl + '/receipt', receiptInfo, {
+    headers: { 'Content-Type': 'application/json' },
+    transformRequest: [(data) => JSON.stringify(data)], // ★ createInstance가 Qs.stringify 해도 무력화
+  })
+  .then(() => navigate('/receipt'))
+  .catch((err) => {
+    alert('제출에 실패했습니다. 다시 시도해주세요.');
+    console.error(err);
+  })
+  .finally(() => setIsLoading(false));
+}
 
 
   function renderScaleQuestion(label, name) {
