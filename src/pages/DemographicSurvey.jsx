@@ -398,7 +398,7 @@ export default function SurveyAll() {
           ) : null;
         })}
 
-        {(allDemographicsAnswered || movedTopRight) && (
+        {(allDemographicsAnswered ) && (
           <>
             <h2
               style={{
