@@ -26,7 +26,6 @@ export default function SurveyAll() {
   const navigate = useNavigate();
   const axios = createInstance();
 
-  // store values & setters
   const {
     nickName: sNickName,
     gender: sGender,
@@ -45,7 +44,6 @@ export default function SurveyAll() {
     setCustomReason,
   } = useUserStore();
 
-  // local UI state
   const [formData, setFormData] = useState({
     nickname: '',
     gender: '',
@@ -58,11 +56,8 @@ export default function SurveyAll() {
   const [isLoading, setIsLoading] = useState(false);
   const [reasons, setReasons] = useState([]);
   const [customReason, setCustomReasonLocal] = useState('');
-
-  // 첫 클릭 후 버튼을 우상단으로 이동 → 두 번째 클릭부터 진짜 제출
   const [movedTopRight, setMovedTopRight] = useState(false);
 
-  // logs
   useEffect(() => {
     console.log('[SurveyAll mount] store snapshot:', {
       sNickName, sGender, sAge, sRegion, sIncome, sReasons, sCustomReason, sViewDate
@@ -81,7 +76,6 @@ export default function SurveyAll() {
     console.log('[SurveyAll customReason changed]', customReason, ' | store:', sCustomReason);
   }, [customReason, sCustomReason]);
 
-  // field -> store setter
   const fieldSetterMap = {
     gender: setGender,
     age: setAge,
@@ -95,6 +89,7 @@ export default function SurveyAll() {
 
     if (name === 'nickname') {
       setNickName(value);
+      // 닉네임이 바뀌면 다시 중복체크 요구
       setIsNicknameChecked(false);
       setIsDuplicateNickname(true);
     } else if (fieldSetterMap[name]) {
@@ -107,7 +102,6 @@ export default function SurveyAll() {
       Swal.fire('닉네임을 입력해주세요.', '', 'error');
       return;
     }
-
     setIsLoading(true);
     try {
       const response = await axios.post(
@@ -115,7 +109,6 @@ export default function SurveyAll() {
         formData.nickname,
         { headers: { 'Content-Type': 'application/json' } }
       );
-
       const isDuplicate = response.data;
 
       if (isDuplicate) {
@@ -127,7 +120,6 @@ export default function SurveyAll() {
         setIsNicknameChecked(true);
         Swal.fire('사용 가능한 닉네임입니다.', '', 'success');
       }
-
       console.log('[nicknameCheck result]', { isDuplicate, formNickname: formData.nickname, storeNick: useUserStore.getState().nickName });
     } catch (error) {
       console.error('닉네임 중복 체크 에러', error);
@@ -142,113 +134,107 @@ export default function SurveyAll() {
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target;
-
-    // local
     setReasons((prev) => (checked ? [...prev, value] : prev.filter((r) => r !== value)));
-
-    // store toggle
     toggleReason(value);
-
-    console.log('[onToggle reason]', {
-      value, checked,
-      localReasonsNext: checked ? [...reasons, value] : reasons.filter(r => r !== value),
-      storeReasonsNext: useUserStore.getState().reasons
-    });
   };
 
   const handleCustomReasonChange = (e) => {
     const v = e.target.value;
     setCustomReasonLocal(v);
     setCustomReason(v);
-    console.log('[onChange customReason]', v, ' | store.customReason ->', useUserStore.getState().customReason);
   };
 
-  //첫 클릭은 confirm+초기화(+텔레포트)만, 두 번째 클릭부터 실제 제출
-// ⬇︎ 기존 함수 선언을 async로 변경
-const handleReasonSubmit = async (e) => {
-  e.preventDefault();
+  // 첫 클릭: 초기화 & 텔레포트 / 두 번째 클릭부터 실제 제출
+  const handleReasonSubmit = async (e) => {
+    e.preventDefault();
 
-  if (!movedTopRight) {
-    const ok = window.confirm('초기화하시겠습니까?');
-    if (ok) {
-      // ... (초기화 로직 그대로)
-      setFormData({ nickname: '', gender: '', age: '', region: '', income: '' });
-      setReasons([]);
-      setCustomReasonLocal('');
-      setNickName('');
-      setGender('');
-      setAge('');
-      setRegion('');
-      setIncome('');
-      setCustomReason('');
-      try {
-        const curr = [...(useUserStore.getState().reasons || [])];
-        curr.forEach((r) => toggleReason(r));
-      } catch (_) {}
-      setIsNicknameChecked(false);
-      setIsDuplicateNickname(false);
+    if (!movedTopRight) {
+      const ok = window.confirm('초기화하시겠습니까?');
+      if (ok) {
+        setFormData({ nickname: '', gender: '', age: '', region: '', income: '' });
+        setReasons([]);
+        setCustomReasonLocal('');
+        setNickName('');
+        setGender('');
+        setAge('');
+        setRegion('');
+        setIncome('');
+        setCustomReason('');
+        try {
+          const curr = [...(useUserStore.getState().reasons || [])];
+          curr.forEach((r) => toggleReason(r));
+        } catch (_) {}
+        setIsNicknameChecked(false);
+        setIsDuplicateNickname(false);
+      }
+      setMovedTopRight(true);
+      return;
     }
-    setMovedTopRight(true);
-    return; // ← 첫 클릭은 여기서 종료 (텔레포트만)
-  }
 
-  // 두 번째 클릭 이후: 실제 제출(기존 검증 유지)
-  if (!isNicknameChecked) {
-    await Swal.fire('닉네임 중복 체크를 해주세요!', '', 'error');
-    return;
-  }
+    // ✅ 수정 1: 초기화 후에도 유효성 검사로 제출 차단
+    if (!allDemographicsAnswered) {
+      await Swal.fire('입력 누락', '모든 응답자 정보를 입력해주세요.', 'error');
+      return;
+    }
 
-  let finalReasons = reasons;
-  if (reasons.includes('기타') && customReason.trim()) {
-    finalReasons = reasons.filter((r) => r !== '기타').concat(customReason.trim());
-  }
-  if (finalReasons.length === 0) {
-    await Swal.fire('오류', '참여 이유를 하나 이상 선택해주세요', 'error');
-    return;
-  }
+    // 닉네임 중복 체크 필수
+    if (!isNicknameChecked || isDuplicateNickname) {
+      await Swal.fire('닉네임 확인', '닉네임 중복 체크를 완료해주세요.', 'error');
+      return;
+    }
 
-  // ✅ 여기서 SweetAlert로 2단계 확인
-  const first = await Swal.fire({
-    title: '제출하시겠습니까?',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: '예',
-    cancelButtonText: '아니오',
-    reverseButtons: true,
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-  });
-  if (!first.isConfirmed) return;
+    // reason 가공/검증
+    let finalReasons = reasons;
+    if (reasons.includes('기타') && customReason.trim()) {
+      finalReasons = reasons.filter((r) => r !== '기타').concat(customReason.trim());
+    }
+    if (finalReasons.length === 0) {
+      await Swal.fire('오류', '참여 이유를 하나 이상 선택해주세요', 'error');
+      return;
+    }
 
-  const second = await Swal.fire({
-    title: '정말요?',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: '예',
-    cancelButtonText: '아니오',
-    reverseButtons: true,
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-  });
-  if (!second.isConfirmed) return;
+    const first = await Swal.fire({
+      title: '제출하시겠습니까?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '예',
+      cancelButtonText: '아니오',
+      reverseButtons: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+    });
+    if (!first.isConfirmed) return;
 
-  // 제출 진행
-  setNickName(formData.nickname);
-  navigate('/questions');
-};
+    const second = await Swal.fire({
+      title: '정말요?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '예',
+      cancelButtonText: '아니오',
+      reverseButtons: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+    });
+    if (!second.isConfirmed) return;
 
+    setNickName(formData.nickname);
+    navigate('/questions');
+  };
 
-
-  // 구린 폰트 공통
   const badFont = {
     fontFamily: '"Comic Sans MS", "Papyrus", cursive, fantasy, serif',
     letterSpacing: '0.6px',
     lineHeight: 1.2,
   };
 
+  // ✅ 수정 2: 버튼 비활성화 조건에 allDemographicsAnswered 반영
+  const isSubmitDisabled =
+    movedTopRight
+      ? (!allDemographicsAnswered || !isNicknameChecked || isDuplicateNickname)
+      : (!isNicknameChecked || isDuplicateNickname);
+
   return (
     <>
-      {/* 메인 내용 영역 */}
       <div
         style={{
           padding: 40,
@@ -309,42 +295,48 @@ const handleReasonSubmit = async (e) => {
                 }}
               >
                 {question.type === 'text' && question.name === 'nickname' && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      id={question.name}
-                      type="text"
-                      name={question.name}
-                      value={formData[question.name]}
-                      onChange={handleDemographicChange}
-                      style={{
-                        flex: 1,
-                        padding: 14,
-                        fontSize: 20,
-                        borderRadius: 8,
-                        border: '2px solid #aaa',
-                        outline: 'none',
-                        transition: 'border-color 0.2s',
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = '#007bff')}
-                      onBlur={(e) => (e.target.style.borderColor = '#aaa')}
-                      autoComplete="off"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleNicknameCheck}
-                      style={{
-                        padding: '10px 16px',
-                        fontSize: 16,
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      중복 체크
-                    </button>
-                  </div>
+                  <>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        id={question.name}
+                        type="text"
+                        name={question.name}
+                        value={formData[question.name]}
+                        onChange={handleDemographicChange}
+                        style={{
+                          flex: 1,
+                          padding: 14,
+                          fontSize: 20,
+                          borderRadius: 8,
+                          border: '2px solid #aaa',
+                          outline: 'none',
+                          transition: 'border-color 0.2s',
+                        }}
+                        onFocus={(e) => (e.target.style.borderColor = '#007bff')}
+                        onBlur={(e) => (e.target.style.borderColor = '#aaa')}
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleNicknameCheck}
+                        style={{
+                          padding: '10px 16px',
+                          fontSize: 16,
+                          backgroundColor: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        중복 체크
+                      </button>
+                    </div>
+                    {/* ✅ 안내문구 추가 */}
+                    <div style={{ marginTop: 8, fontSize: 14, color: '#aa0000', textAlign: 'left' }}>
+                      [주의] 초대장에 있는 닉네임을 입력해주세요.
+                    </div>
+                  </>
                 )}
 
                 {question.type === 'radio' &&
@@ -489,10 +481,10 @@ const handleReasonSubmit = async (e) => {
                 </div>
               )}
 
-              {/* 제출 버튼: 텔레포트 전/후 스타일 분기 */}
+              {/* 제출 버튼 */}
               <button
                 type="submit"
-                disabled={!movedTopRight && (!isNicknameChecked || isDuplicateNickname)}
+                disabled={isSubmitDisabled}
                 style={
                   movedTopRight
                     ? {
@@ -504,9 +496,9 @@ const handleReasonSubmit = async (e) => {
                         fontWeight: 700,
                         borderRadius: 4,
                         border: '1px solid #666',
-                        backgroundColor: '#ddd',
+                        backgroundColor: isSubmitDisabled ? '#eee' : '#ddd',
                         color: '#222',
-                        cursor: 'pointer',
+                        cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
                         zIndex: 9999,
                       }
                     : {
